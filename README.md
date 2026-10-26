@@ -1,5 +1,8 @@
 # mermaid-render
 
+<img width="501" height="1027" alt="Screenshot 2026-10-26 at 19 02 20" src="https://github.com/user-attachments/assets/bef90f8c-7cbc-499e-88a2-ff8c2dc0b498" />
+
+
 A Claude Code mod that draws ```` ```mermaid ```` code blocks in Claude's replies as real diagrams in **Claude Code Desktop** (Code tab, local sessions).
 
 While a diagram renders, the reply shows the original code block. If rendering fails, the code block stays and a short `mermaid: <error>` line appears under it. Other surfaces (CLI, VS Code, mobile) are left untouched. Diagrams are rendered locally; nothing is sent to an external service.
