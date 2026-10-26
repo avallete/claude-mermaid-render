@@ -2,6 +2,12 @@ import { expect, test } from 'claude-code/testing'
 
 const TEXT = 'Here is the flow:\n\n```mermaid\ngraph TD\n  A-->B\n```\n\nDone.'
 
+const RAW = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10.123456789" height="10"/></svg>'
+
+const ok = (stdout: string) => ({
+  value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+})
+
 const MSG = (surface: 'desktop' | 'terminal') => ({
   plugin: 'mermaid-render',
   surface,
@@ -12,7 +18,7 @@ const MSG = (surface: 'desktop' | 'terminal') => ({
 test('desktop draws the diagram once mmdc answers', async ($, on) => {
   let calls = 0
   on('process.run', (_, e) => {
-    if (e.argv[1] === '-e') return { value: { exitCode: 0, stdout: '["/bin/node","/g/cli.js"]', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","mmdc":"/g/cli.js"}')
     calls += 1
     expect(e.argv.slice(0, 2)).toEqual(['/bin/node', '/g/cli.js'])
     expect(e.init?.stdin).toBe('graph TD\n  A-->B')
@@ -31,6 +37,21 @@ test('desktop draws the diagram once mmdc answers', async ($, on) => {
   expect(await ui.find({ type: 'Svg' })).toBeDefined()
   expect(await ui.find({ type: 'Markdown', text: /Here is the flow/ })).toBeDefined()
   expect(calls).toBe(1)
+  await ui.unmount()
+})
+
+test('a global svgo shrinks the diagram', async ($, on) => {
+  on('process.run', (_, e) => {
+    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","mmdc":"/g/cli.js","svgo":"/g/svgo.js"}')
+    if (e.argv[1] === '/g/svgo.js') {
+      expect(e.argv).toContain('--precision')
+      expect(e.init?.stdin).toBe(RAW)
+      return ok('<svg>small</svg>')
+    }
+    return ok(RAW)
+  })
+  const ui = await $.ui.mount(MSG('desktop'))
+  expect((await ui.find({ type: 'Svg' }))?.props.source).toBe('<svg>small</svg>')
   await ui.unmount()
 })
 

@@ -10,9 +10,9 @@ Limitation: only Claude's replies in the transcript are drawn. The desktop app's
 
 This repository is private: you need read access on GitHub and a git credential for github.com on your machine (an SSH key, or `gh auth login` then `gh auth setup-git`). The install never prompts for one.
 
-### 1. Install Node.js and the Mermaid CLI
+### 1. Install Node.js, the Mermaid CLI and svgo
 
-The CLI needs Node.js 18 or newer and downloads its own headless Chromium on install.
+The Mermaid CLI needs Node.js 18 or newer and downloads its own headless Chromium on install. [svgo](https://github.com/svg/svgo) is optional but recommended: the mod runs it on every diagram (`--precision 1 --multipass`), which makes a typical flowchart about 4x smaller (a 25-node flowchart goes from 221 KB to 53 KB) with no visible change. Without it, diagrams over 128 KB show an error instead of drawing.
 
 #### macOS
 
@@ -21,7 +21,7 @@ brew install node
 ```
 
 ```bash
-npm i -g @mermaid-js/mermaid-cli
+npm i -g @mermaid-js/mermaid-cli svgo
 ```
 
 ```bash
@@ -33,7 +33,7 @@ echo 'graph TD; A-->B' | mmdc -i - -o - -e svg | head -c 40
 Install Node.js 18+ from your distribution or [nodejs.org](https://nodejs.org), then:
 
 ```bash
-npm i -g @mermaid-js/mermaid-cli
+npm i -g @mermaid-js/mermaid-cli svgo
 ```
 
 ```bash
@@ -53,7 +53,7 @@ winget install OpenJS.NodeJS.LTS
 Open a new terminal so `node` and `npm` are on `PATH`, then:
 
 ```powershell
-npm i -g @mermaid-js/mermaid-cli
+npm i -g @mermaid-js/mermaid-cli svgo
 ```
 
 ```powershell
@@ -62,7 +62,9 @@ npm i -g @mermaid-js/mermaid-cli
 
 If PowerShell refuses to run `mmdc.ps1` (execution policy), use `mmdc.cmd` in the check; the mod itself is not affected.
 
-Every OS should print the start of an `<svg ...` element.
+Every OS should print the start of an `<svg ...` element. `svgo --version` should print a version.
+
+The mod finds `mmdc` and `svgo` on `PATH` when a session first draws a diagram; start a new session after installing either.
 
 ### 2. Install the mod
 
@@ -114,7 +116,7 @@ Start a new Desktop Code-tab session and ask: *"Reply with a mermaid flowchart o
 
 ## For agents installing this
 
-1. Run `npm i -g @mermaid-js/mermaid-cli` and the check in step 1 (on Linux as root, write a Puppeteer config with `--no-sandbox` and set `puppeteerConfig` to its path).
+1. Run `npm i -g @mermaid-js/mermaid-cli svgo` and the check in step 1 (on Linux as root, write a Puppeteer config with `--no-sandbox` and set `puppeteerConfig` to its path).
 2. Run `claude plugin install mermaid-render --marketplace avallete/claude-mermaid-render`, user scope.
 3. Leave `command` empty unless the check in step 4 fails; then set it to `"<absolute node path>" "<npm root -g>/@mermaid-js/mermaid-cli/src/cli.js"` in `pluginConfigs["mermaid-render@claude-mermaid-render"].options` of `~/.claude/settings.json` (`%USERPROFILE%\.claude\settings.json` on Windows), merging with what is there.
 4. Tell the user to start a new Desktop session and ask for a mermaid diagram.

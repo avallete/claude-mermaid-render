@@ -28,37 +28,46 @@ export function split(markdown: string): Part[] {
   return parts
 }
 
-// Finds a global @mermaid-js/mermaid-cli by the `mmdc` launcher on PATH and
-// prints `node`'s own path plus the CLI script, so the renderer starts without
-// a shell: npm's `.cmd` launchers on Windows and version-manager shims can't.
+// Finds global npm packages by their launcher on PATH and prints `node`'s own
+// path plus each package's script, so they start without a shell: npm's `.cmd`
+// launchers on Windows and version-manager shims can't.
 const LOCATE = `
 const fs = require('fs'), path = require('path')
 const win = process.platform === 'win32'
-const tail = path.join('node_modules', '@mermaid-js', 'mermaid-cli', 'src', 'cli.js')
-for (const dir of (process.env.PATH || '').split(path.delimiter)) {
-  if (!dir) continue
-  for (const name of win ? ['mmdc.cmd', 'mmdc'] : ['mmdc']) {
-    const bin = path.join(dir, name)
-    if (!fs.existsSync(bin)) continue
-    const real = fs.realpathSync(bin)
-    const cli = real.endsWith('cli.js') ? real
-      : [path.join(dir, tail), path.join(dir, '..', 'lib', tail)].find(f => fs.existsSync(f))
-    if (cli) { process.stdout.write(JSON.stringify([process.execPath, cli])); process.exit(0) }
+const find = (name, script) => {
+  const tail = path.join('node_modules', ...script)
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue
+    for (const bin of win ? [name + '.cmd', name] : [name]) {
+      const file = path.join(dir, bin)
+      if (!fs.existsSync(file)) continue
+      const real = fs.realpathSync(file)
+      const hit = real.endsWith(script[script.length - 1]) ? real
+        : [path.join(dir, tail), path.join(dir, '..', 'lib', tail)].find(f => fs.existsSync(f))
+      if (hit) return hit
+    }
   }
 }
+process.stdout.write(JSON.stringify({
+  node: process.execPath,
+  mmdc: find('mmdc', ['@mermaid-js', 'mermaid-cli', 'src', 'cli.js']),
+  svgo: find('svgo', ['svgo', 'bin', 'svgo.js']),
+}))
 `
+
+type Found = { node?: string; mmdc?: string; svgo?: string }
 
 // Commands run from the filesystem root, not the session's folder: Windows looks
 // up a bare `node`/`npx` in the working directory first, so a cloned repo could
 // plant one, and version managers would pick the project's pinned Node.
 const CWD = '/'
 
-async function locate($: EngineInterface): Promise<string[] | undefined> {
+async function locate($: EngineInterface): Promise<Found> {
   try {
     const out = await $.process.run(['node', '-e', LOCATE], { cwd: CWD, timeoutMs: 15_000 })
-    if (out.exitCode === 0 && out.stdout.startsWith('[')) return JSON.parse(out.stdout)
+    if (out.exitCode === 0 && out.stdout.startsWith('{')) return JSON.parse(out.stdout)
   } catch {}
-  return undefined
+  return {}
 }
 
 // Without a shell Windows can't start `npx`/`mmdc` (they are `.cmd` files);
@@ -76,36 +85,55 @@ async function run($: EngineInterface, argv: string[], stdin: string) {
   }
 }
 
+// Mermaid writes coordinates to ~15 decimals and strokes every outline twice;
+// svgo at one decimal cuts a typical flowchart ~4x with no visible change.
+// Optional: without a global svgo, or if it fails, the raw SVG is kept.
+async function optimize($: EngineInterface, found: Found, svg: string) {
+  if (!found.node || !found.svgo) return svg
+  try {
+    const out = await $.process.run(
+      [found.node, found.svgo, '-i', '-', '-o', '-', '--precision', '1', '--multipass'],
+      { cwd: CWD, stdin: svg, timeoutMs: 30_000 },
+    )
+    const small = out.stdout.slice(out.stdout.indexOf('<svg'))
+    return out.exitCode === 0 && small.startsWith('<svg') ? small : svg
+  } catch {
+    return svg
+  }
+}
+
 const NPX = ['npx', '-y', '-p', '@mermaid-js/mermaid-cli@11', 'mmdc']
 
 type Config = {
-  command: Promise<string[]> | undefined
+  custom: string[]
+  found: Promise<Found> | undefined
   theme: string
   puppeteerConfig: string
   pending: Set<string>
 }
 
 async function render($: EngineInterface, cfg: Config, key: string, source: string) {
-  const { theme, puppeteerConfig, pending } = cfg
+  const { custom, theme, puppeteerConfig, pending } = cfg
   if (pending.has(key)) return
   pending.add(key)
   let result: Rendered
   try {
-    cfg.command ??= locate($).then(found => found ?? NPX)
+    const found = await (cfg.found ??= locate($))
+    const command = custom.length ? custom
+      : found.node && found.mmdc ? [found.node, found.mmdc] : NPX
     const argv = [
-      ...(await cfg.command),
+      ...command,
       '-i', '-', '-o', '-', '-e', 'svg',
       '-t', theme, '-b', 'transparent',
       ...(puppeteerConfig ? ['-p', puppeteerConfig] : []),
     ]
     const out = await run($, argv, source)
-    const svg = out.stdout.slice(out.stdout.indexOf('<svg'))
-    if (out.exitCode !== 0 || !svg.startsWith('<svg')) {
+    const raw = out.stdout.slice(out.stdout.indexOf('<svg'))
+    if (out.exitCode !== 0 || !raw.startsWith('<svg')) {
       result = { error: (out.stderr || out.stdout).trim().split('\n').slice(-3).join('\n') || `exit ${out.exitCode}` }
-    } else if (svg.length > 131_072) {
-      result = { error: 'diagram too large to draw inline' }
     } else {
-      result = { svg }
+      const svg = await optimize($, found, raw)
+      result = svg.length > 131_072 ? { error: 'diagram too large to draw inline' } : { svg }
     }
   } catch (err) {
     result = { error: err instanceof Error ? err.message : String(err) }
@@ -119,9 +147,8 @@ export const register: Register = (on, options) => {
   const custom = String(options.command ?? '').trim()
   // Double quotes keep a path with spaces in one argument (C:\Program Files\...).
   const words = [...custom.matchAll(/"([^"]*)"|(\S+)/g)].map(m => m[1] ?? m[2] ?? '')
-  const command = words.length ? Promise.resolve(words) : undefined
   const puppeteerConfig = String(options.puppeteerConfig ?? '')
-  const cfg: Config = { command, theme, puppeteerConfig, pending: new Set() }
+  const cfg: Config = { custom: words, found: undefined, theme, puppeteerConfig, pending: new Set() }
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     if (e.surface !== 'desktop' || e.props.isSummary) return next(e)
