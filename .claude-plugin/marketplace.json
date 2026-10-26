@@ -1,0 +1,5 @@
+{
+  "name": "claude-mermaid-render",
+  "owner": { "name": "Andrew Valleteau" },
+  "plugins": [{ "name": "mermaid-render", "source": "./" }]
+}

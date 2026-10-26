@@ -1,0 +1,29 @@
+{
+  "name": "mermaid-render",
+  "version": "0.1.0",
+  "author": { "name": "Andrew Valleteau" },
+  "description": "Draws ```mermaid blocks in assistant replies as diagrams in Claude Code Desktop",
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "command": {
+      "type": "string",
+      "title": "Renderer command",
+      "description": "Mermaid CLI invocation; input/output flags are appended",
+      "default": "npx -y -p @mermaid-js/mermaid-cli@11 mmdc"
+    },
+    "theme": {
+      "type": "string",
+      "title": "Diagram theme",
+      "description": "Mermaid theme",
+      "options": ["default", "dark", "neutral", "forest"],
+      "default": "default"
+    },
+    "puppeteerConfig": {
+      "type": "string",
+      "title": "Puppeteer config file",
+      "description": "Optional path passed to mmdc -p (e.g. to point at a Chromium)",
+      "default": ""
+    }
+  }
+}
