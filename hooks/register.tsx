@@ -48,9 +48,14 @@ for (const dir of (process.env.PATH || '').split(path.delimiter)) {
 }
 `
 
+// Commands run from the filesystem root, not the session's folder: Windows looks
+// up a bare `node`/`npx` in the working directory first, so a cloned repo could
+// plant one, and version managers would pick the project's pinned Node.
+const CWD = '/'
+
 async function locate($: EngineInterface): Promise<string[] | undefined> {
   try {
-    const out = await $.process.run(['node', '-e', LOCATE], { timeoutMs: 15_000 })
+    const out = await $.process.run(['node', '-e', LOCATE], { cwd: CWD, timeoutMs: 15_000 })
     if (out.exitCode === 0 && out.stdout.startsWith('[')) return JSON.parse(out.stdout)
   } catch {}
   return undefined
@@ -59,12 +64,12 @@ async function locate($: EngineInterface): Promise<string[] | undefined> {
 // Without a shell Windows can't start `npx`/`mmdc` (they are `.cmd` files);
 // cmd.exe can. On other systems cmd.exe doesn't exist and the first error stands.
 async function run($: EngineInterface, argv: string[], stdin: string) {
-  const init = { stdin, timeoutMs: 120_000 }
+  const init = { cwd: CWD, stdin, timeoutMs: 120_000 }
   try {
     return await $.process.run(argv, init)
   } catch (err) {
     try {
-      return await $.process.run(['cmd.exe', '/d', '/s', '/c', ...argv], init)
+      return await $.process.run(['C:\\Windows\\System32\\cmd.exe', '/d', '/s', '/c', ...argv], init)
     } catch {
       throw err
     }
