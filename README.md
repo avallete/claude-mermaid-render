@@ -86,7 +86,7 @@ In the desktop app (where `/plugin` does not run): click **+** next to the promp
 
 Works on macOS, Linux and Windows. With the **Renderer command** option empty (the default), the mod looks for the `mmdc` installed in step 1 on `PATH` and runs its script with Node directly, with no shell, so npm's `.cmd` launchers on Windows and version-manager shims (mise, asdf, nvm) don't get in the way. If no global `mmdc` is found it falls back to `npx -y -p @mermaid-js/mermaid-cli@11 mmdc`, which is slow on every diagram.
 
-To force a command, set `command` (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`, `%USERPROFILE%\\.claude\\settings.json` on Windows). Quote paths with spaces. macOS/Linux:
+To force a command, set `command` (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`, `%USERPROFILE%\.claude\settings.json` on Windows). Quote paths with spaces. macOS/Linux:
 
 ```json
 "pluginConfigs": {
