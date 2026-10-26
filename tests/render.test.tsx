@@ -12,7 +12,9 @@ const MSG = (surface: 'desktop' | 'terminal') => ({
 test('desktop draws the diagram once mmdc answers', async ($, on) => {
   let calls = 0
   on('process.run', (_, e) => {
+    if (e.argv[1] === '-e') return { value: { exitCode: 0, stdout: '["/bin/node","/g/cli.js"]', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     calls += 1
+    expect(e.argv.slice(0, 2)).toEqual(['/bin/node', '/g/cli.js'])
     expect(e.init?.stdin).toBe('graph TD\n  A-->B')
     return {
       value: {

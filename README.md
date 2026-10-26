@@ -40,24 +40,21 @@ claude plugin install mermaid-render --marketplace avallete/claude-mermaid-rende
 
 In the desktop app (where `/plugin` does not run): click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `avallete/claude-mermaid-render`, then **Add plugin**.
 
-### 3. Point it at the renderer
+### 3. Renderer (usually nothing to do)
 
-Without configuration the mod runs `npx -y -p @mermaid-js/mermaid-cli@11 mmdc` for every diagram, which is slow. Set the **Renderer command** option (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`) to an absolute command:
+Works on macOS, Linux and Windows. With the **Renderer command** option empty (the default), the mod looks for the `mmdc` installed in step 1 on `PATH` and runs its script with Node directly, with no shell, so npm's `.cmd` launchers on Windows and version-manager shims (mise, asdf, nvm) don't get in the way. If no global `mmdc` is found it falls back to `npx -y -p @mermaid-js/mermaid-cli@11 mmdc`, which is slow on every diagram.
+
+To force a command, set `command` (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`). Quote paths with spaces:
 
 ```json
 "pluginConfigs": {
   "mermaid-render@claude-mermaid-render": {
-    "options": {
-      "command": "/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/@mermaid-js/mermaid-cli/src/cli.js",
-      "theme": "default"
-    }
+    "options": { "command": "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@mermaid-js\\mermaid-cli\\src\\cli.js" }
   }
 }
 ```
 
-Use absolute paths (`which node`, `npm root -g`). A bare `mmdc` starts Node through `#!/usr/bin/env node`; with a version manager (mise, asdf, nvm) on `PATH` its shim can pick a missing Node version for the session's folder and fail.
-
-Options: `command`, `theme` (`default`, `dark`, `neutral`, `forest`), and `puppeteerConfig`, an optional file passed to `mmdc -p` (for example `{"args":["--no-sandbox"]}` on Linux as root).
+Options: `command`, `theme` (`default`, `dark`, `neutral`, `forest`), and `puppeteerConfig`, an optional file passed to `mmdc -p`. On Linux as root, or in a container, Chromium needs a config such as `{"args":["--no-sandbox"]}`; on minimal Linux images install Chromium's shared libraries (see Puppeteer's troubleshooting guide).
 
 ### 4. Check
 
@@ -65,10 +62,10 @@ Start a new Desktop Code-tab session and ask: *"Reply with a mermaid flowchart o
 
 ## For agents installing this
 
-1. Run `npm i -g @mermaid-js/mermaid-cli` and the check in step 1.
-2. Run `claude plugin install mermaid-render --marketplace avallete/claude-mermaid-render`.
-3. Resolve `$(which node)` and `$(npm root -g)/@mermaid-js/mermaid-cli/src/cli.js`, and write them as `"<node> <cli.js>"` into `pluginConfigs["mermaid-render@claude-mermaid-render"].options.command` in `~/.claude/settings.json`, merging with what is there.
-4. Tell the user to start a new session.
+1. Run `npm i -g @mermaid-js/mermaid-cli` and the check in step 1 (on Linux as root, write a Puppeteer config with `--no-sandbox` and set `puppeteerConfig` to its path).
+2. Run `claude plugin install mermaid-render --marketplace avallete/claude-mermaid-render`, user scope.
+3. Leave `command` empty unless the check in step 4 fails; then set it to `"<absolute node path>" "<npm root -g>/@mermaid-js/mermaid-cli/src/cli.js"` in `pluginConfigs["mermaid-render@claude-mermaid-render"].options` of `~/.claude/settings.json`, merging with what is there.
+4. Tell the user to start a new Desktop session and ask for a mermaid diagram.
 
 If no diagram appears, run `claude --debug` and search the log for `mermaid-render`.
 

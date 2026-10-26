@@ -28,26 +28,72 @@ export function split(markdown: string): Part[] {
   return parts
 }
 
+// Finds a global @mermaid-js/mermaid-cli by the `mmdc` launcher on PATH and
+// prints `node`'s own path plus the CLI script, so the renderer starts without
+// a shell: npm's `.cmd` launchers on Windows and version-manager shims can't.
+const LOCATE = `
+const fs = require('fs'), path = require('path')
+const win = process.platform === 'win32'
+const tail = path.join('node_modules', '@mermaid-js', 'mermaid-cli', 'src', 'cli.js')
+for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+  if (!dir) continue
+  for (const name of win ? ['mmdc.cmd', 'mmdc'] : ['mmdc']) {
+    const bin = path.join(dir, name)
+    if (!fs.existsSync(bin)) continue
+    const real = fs.realpathSync(bin)
+    const cli = real.endsWith('cli.js') ? real
+      : [path.join(dir, tail), path.join(dir, '..', 'lib', tail)].find(f => fs.existsSync(f))
+    if (cli) { process.stdout.write(JSON.stringify([process.execPath, cli])); process.exit(0) }
+  }
+}
+`
+
+async function locate($: EngineInterface): Promise<string[] | undefined> {
+  try {
+    const out = await $.process.run(['node', '-e', LOCATE], { timeoutMs: 15_000 })
+    if (out.exitCode === 0 && out.stdout.startsWith('[')) return JSON.parse(out.stdout)
+  } catch {}
+  return undefined
+}
+
+// Without a shell Windows can't start `npx`/`mmdc` (they are `.cmd` files);
+// cmd.exe can. On other systems cmd.exe doesn't exist and the first error stands.
+async function run($: EngineInterface, argv: string[], stdin: string) {
+  const init = { stdin, timeoutMs: 120_000 }
+  try {
+    return await $.process.run(argv, init)
+  } catch (err) {
+    try {
+      return await $.process.run(['cmd.exe', '/d', '/s', '/c', ...argv], init)
+    } catch {
+      throw err
+    }
+  }
+}
+
+const NPX = ['npx', '-y', '-p', '@mermaid-js/mermaid-cli@11', 'mmdc']
+
 type Config = {
-  command: string[]
+  command: Promise<string[]> | undefined
   theme: string
   puppeteerConfig: string
   pending: Set<string>
 }
 
 async function render($: EngineInterface, cfg: Config, key: string, source: string) {
-  const { command, theme, puppeteerConfig, pending } = cfg
+  const { theme, puppeteerConfig, pending } = cfg
   if (pending.has(key)) return
   pending.add(key)
   let result: Rendered
   try {
+    cfg.command ??= locate($).then(found => found ?? NPX)
     const argv = [
-      ...command,
+      ...(await cfg.command),
       '-i', '-', '-o', '-', '-e', 'svg',
       '-t', theme, '-b', 'transparent',
       ...(puppeteerConfig ? ['-p', puppeteerConfig] : []),
     ]
-    const out = await $.process.run(argv, { stdin: source, timeoutMs: 120_000 })
+    const out = await run($, argv, source)
     const svg = out.stdout.slice(out.stdout.indexOf('<svg'))
     if (out.exitCode !== 0 || !svg.startsWith('<svg')) {
       result = { error: (out.stderr || out.stdout).trim().split('\n').slice(-3).join('\n') || `exit ${out.exitCode}` }
@@ -65,11 +111,10 @@ async function render($: EngineInterface, cfg: Config, key: string, source: stri
 
 export const register: Register = (on, options) => {
   const theme = String(options.theme ?? 'default')
-  const command = String(
-    options.command || 'npx -y -p @mermaid-js/mermaid-cli@11 mmdc',
-  )
-    .split(/\s+/)
-    .filter(Boolean)
+  const custom = String(options.command ?? '').trim()
+  // Double quotes keep a path with spaces in one argument (C:\Program Files\...).
+  const words = [...custom.matchAll(/"([^"]*)"|(\S+)/g)].map(m => m[1] ?? m[2] ?? '')
+  const command = words.length ? Promise.resolve(words) : undefined
   const puppeteerConfig = String(options.puppeteerConfig ?? '')
   const cfg: Config = { command, theme, puppeteerConfig, pending: new Set() }
 

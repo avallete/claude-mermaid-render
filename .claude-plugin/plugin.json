@@ -9,8 +9,8 @@
     "command": {
       "type": "string",
       "title": "Renderer command",
-      "description": "Mermaid CLI invocation; input/output flags are appended",
-      "default": "npx -y -p @mermaid-js/mermaid-cli@11 mmdc"
+      "description": "Mermaid CLI invocation; input/output flags are appended. Empty: a global mmdc found on PATH, else npx",
+      "default": ""
     },
     "theme": {
       "type": "string",

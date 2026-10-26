@@ -1,5 +1,6 @@
 {
   "name": "claude-mermaid-render",
+  "description": "Draws mermaid diagrams in Claude Code Desktop replies",
   "owner": { "name": "Andrew Valleteau" },
   "plugins": [{ "name": "mermaid-render", "source": "./" }]
 }
