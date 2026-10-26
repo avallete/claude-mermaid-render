@@ -10,17 +10,59 @@ Limitation: only Claude's replies in the transcript are drawn. The desktop app's
 
 This repository is private: you need read access on GitHub and a git credential for github.com on your machine (an SSH key, or `gh auth login` then `gh auth setup-git`). The install never prompts for one.
 
-### 1. Install the Mermaid CLI
+### 1. Install Node.js and the Mermaid CLI
+
+The CLI needs Node.js 18 or newer and downloads its own headless Chromium on install.
+
+#### macOS
+
+```bash
+brew install node
+```
 
 ```bash
 npm i -g @mermaid-js/mermaid-cli
 ```
 
-Check it renders (it downloads a headless Chromium on first install):
+```bash
+echo 'graph TD; A-->B' | mmdc -i - -o - -e svg | head -c 40
+```
+
+#### Linux
+
+Install Node.js 18+ from your distribution or [nodejs.org](https://nodejs.org), then:
+
+```bash
+npm i -g @mermaid-js/mermaid-cli
+```
 
 ```bash
 echo 'graph TD; A-->B' | mmdc -i - -o - -e svg | head -c 40
 ```
+
+If Chromium fails to start, install its shared libraries (Debian/Ubuntu: `sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgbm1 libxkbcommon0 libasound2`). As root or in a container, write `{"args":["--no-sandbox"]}` to a file such as `~/.config/mermaid-puppeteer.json` and set the mod's `puppeteerConfig` option to its path (step 3).
+
+If `npm i -g` needs `sudo`, set a user prefix instead (`npm config set prefix ~/.local`, with `~/.local/bin` on `PATH`) so the mod can find `mmdc`.
+
+#### Windows (PowerShell)
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Open a new terminal so `node` and `npm` are on `PATH`, then:
+
+```powershell
+npm i -g @mermaid-js/mermaid-cli
+```
+
+```powershell
+'graph TD; A-->B' | Set-Content $env:TEMP\m.mmd; mmdc -i $env:TEMP\m.mmd -o $env:TEMP\m.svg; Get-Content $env:TEMP\m.svg -TotalCount 1
+```
+
+If PowerShell refuses to run `mmdc.ps1` (execution policy), use `mmdc.cmd` in the check; the mod itself is not affected.
+
+Every OS should print the start of an `<svg ...` element.
 
 ### 2. Install the mod
 
@@ -44,7 +86,17 @@ In the desktop app (where `/plugin` does not run): click **+** next to the promp
 
 Works on macOS, Linux and Windows. With the **Renderer command** option empty (the default), the mod looks for the `mmdc` installed in step 1 on `PATH` and runs its script with Node directly, with no shell, so npm's `.cmd` launchers on Windows and version-manager shims (mise, asdf, nvm) don't get in the way. If no global `mmdc` is found it falls back to `npx -y -p @mermaid-js/mermaid-cli@11 mmdc`, which is slow on every diagram.
 
-To force a command, set `command` (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`). Quote paths with spaces:
+To force a command, set `command` (`/config` → mermaid-render, or `pluginConfigs` in `~/.claude/settings.json`, `%USERPROFILE%\\.claude\\settings.json` on Windows). Quote paths with spaces. macOS/Linux:
+
+```json
+"pluginConfigs": {
+  "mermaid-render@claude-mermaid-render": {
+    "options": { "command": "/usr/local/bin/node /usr/local/lib/node_modules/@mermaid-js/mermaid-cli/src/cli.js" }
+  }
+}
+```
+
+Windows:
 
 ```json
 "pluginConfigs": {
@@ -64,7 +116,7 @@ Start a new Desktop Code-tab session and ask: *"Reply with a mermaid flowchart o
 
 1. Run `npm i -g @mermaid-js/mermaid-cli` and the check in step 1 (on Linux as root, write a Puppeteer config with `--no-sandbox` and set `puppeteerConfig` to its path).
 2. Run `claude plugin install mermaid-render --marketplace avallete/claude-mermaid-render`, user scope.
-3. Leave `command` empty unless the check in step 4 fails; then set it to `"<absolute node path>" "<npm root -g>/@mermaid-js/mermaid-cli/src/cli.js"` in `pluginConfigs["mermaid-render@claude-mermaid-render"].options` of `~/.claude/settings.json`, merging with what is there.
+3. Leave `command` empty unless the check in step 4 fails; then set it to `"<absolute node path>" "<npm root -g>/@mermaid-js/mermaid-cli/src/cli.js"` in `pluginConfigs["mermaid-render@claude-mermaid-render"].options` of `~/.claude/settings.json` (`%USERPROFILE%\.claude\settings.json` on Windows), merging with what is there.
 4. Tell the user to start a new Desktop session and ask for a mermaid diagram.
 
 If no diagram appears, run `claude --debug` and search the log for `mermaid-render`.
