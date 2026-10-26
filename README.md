@@ -1,7 +1,14 @@
+<p align="center">
+  <img src="assets/logo.svg" width="160" alt="mermaid-render mascot">
+</p>
+
 # mermaid-render
 
-<img width="501" height="1027" alt="Screenshot 2026-10-26 at 19 02 20" src="https://github.com/user-attachments/assets/bef90f8c-7cbc-499e-88a2-ff8c2dc0b498" />
-
+<p align="center">
+  <img src="assets/mermaid-render-demo.gif" width="800" alt="mermaid-render demo: a mermaid code block in a Claude reply turns into a diagram">
+  <br>
+  <a href="assets/mermaid-render-demo.mp4">Watch in 1080p (MP4)</a>
+</p>
 
 A Claude Code mod that draws ```` ```mermaid ```` code blocks in Claude's replies as real diagrams in **Claude Code Desktop** (Code tab, local sessions).
 
@@ -132,4 +139,13 @@ If no diagram appears, run `claude --debug` and search the log for `mermaid-rend
 claude plugin validate .
 claude plugin test .
 claude --plugin-dir .
+```
+
+To re-render the demo after editing `assets/demo/demo.html` (needs Google Chrome, Playwright and ffmpeg), then drag the two files into a GitHub comment and swap the README links for the new attachment URLs. The video files are not committed so they stay out of clones.
+
+```bash
+npm i --no-save playwright
+node assets/demo/record.js /tmp/mr-frames all
+ffmpeg -framerate 30 -i /tmp/mr-frames/%05d.png -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart /tmp/mermaid-render-demo.mp4
+ffmpeg -framerate 30 -i /tmp/mr-frames/%05d.png -vf "fps=15,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" /tmp/mermaid-render-demo.gif
 ```

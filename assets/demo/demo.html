@@ -1,0 +1,452 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; background: #0B1220; }
+  body { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; color: #EDE7DD; }
+  .mono { font-family: "SF Mono", Menlo, monospace; }
+  #stage { position: absolute; inset: 0; overflow: hidden;
+    background: radial-gradient(1200px 700px at 30% 20%, #15324A 0%, #0B1220 60%), #0B1220; }
+  .abs { position: absolute; }
+  .bubble { position: absolute; border-radius: 50%; border: 1.5px solid rgba(120,220,210,.35);
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), rgba(79,209,192,.05)); }
+  #waves { position: absolute; left: 0; right: 0; bottom: 0; height: 200px; }
+
+  /* intro */
+  #intro { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; }
+  #introMascot { position: absolute; left: 520px; top: 120px; width: 240px; height: 240px; }
+  #title { position: absolute; top: 380px; width: 1280px; text-align: center; font-size: 76px; font-weight: 800; letter-spacing: -2px; }
+  #title span { display: inline-block; }
+  #title .accent { color: #4FD1C0; }
+  #tagline { position: absolute; top: 485px; width: 1280px; text-align: center; font-size: 26px; color: #B9C6D3; }
+  #tagline b { color: #F2A65A; font-weight: 600; }
+
+  /* badge */
+  #badge { position: absolute; left: 28px; top: 18px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; }
+  #badge .m { width: 46px; height: 46px; }
+
+  /* app window */
+  #camera { position: absolute; inset: 0; }
+  #win { position: absolute; left: 110px; top: 70px; width: 1060px; height: 610px; border-radius: 14px; overflow: hidden;
+    background: #262624; box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08); }
+  #titlebar { height: 36px; background: #1F1E1D; display: flex; align-items: center; padding-left: 14px; gap: 8px; border-bottom: 1px solid #333230; }
+  #titlebar i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  #titlebar .t { margin-left: 330px; font-size: 13px; color: #9C9A92; }
+  #sidebar { position: absolute; left: 0; top: 36px; bottom: 0; width: 210px; background: #1F1E1D; border-right: 1px solid #333230; padding: 16px 12px; }
+  #sidebar .tab { display: flex; gap: 6px; margin-bottom: 18px; }
+  #sidebar .tab span { font-size: 12px; padding: 4px 10px; border-radius: 6px; color: #9C9A92; }
+  #sidebar .tab span.on { background: #3A3936; color: #EDE7DD; }
+  #sidebar .row { height: 30px; border-radius: 7px; margin-bottom: 6px; padding: 7px 10px; font-size: 12.5px; color: #B5B2A8; white-space: nowrap; overflow: hidden; }
+  #sidebar .row.on { background: #33322F; color: #EDE7DD; }
+  #chat { position: absolute; left: 210px; top: 36px; right: 0; bottom: 0; overflow: hidden; }
+  #scroll { position: absolute; left: 0; right: 0; top: 0; }
+  .col { position: absolute; left: 105px; width: 640px; }
+  #userMsg { right: 105px; left: auto; width: auto; max-width: 520px; top: 22px; background: #3A3936; padding: 11px 16px; border-radius: 16px; font-size: 15px; }
+  .asst { font-size: 15px; color: #EDE7DD; line-height: 1.5; }
+  .asst .star { display: inline-block; color: #D97757; margin-right: 8px; font-size: 18px; vertical-align: -2px; }
+  .code { position: absolute; left: 105px; width: 640px; background: #1C1B1A; border: 1px solid #3A3936; border-radius: 10px; overflow: hidden; }
+  .code .hd { height: 30px; background: #2A2927; font-size: 12px; color: #9C9A92; padding: 7px 12px; display: flex; justify-content: space-between; }
+  .code pre { padding: 10px 14px; font-size: 13.5px; line-height: 22px; color: #D6D2C8; white-space: pre; }
+  .tok-k { color: #C792EA; } .tok-n { color: #82AAFF; } .tok-s { color: #C3E88D; } .tok-o { color: #F78C6C; } .tok-c { color: #6B6A64; }
+  .diagram { position: absolute; left: 105px; width: 640px; background: #FFFFFF; border-radius: 10px; overflow: hidden; border: 1px solid #3A3936; }
+  #pill { position: absolute; display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px;
+    background: rgba(20,30,40,.92); border: 1px solid rgba(79,209,192,.5); font-size: 13px; color: #CFF5EF; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  #pill .m { width: 26px; height: 26px; }
+  #errLine { position: absolute; left: 105px; font-size: 13px; color: #FF8A80; }
+  #input { position: absolute; left: 105px; right: 105px; bottom: 22px; height: 58px; background: #30302E; border: 1px solid #45443F; border-radius: 14px; padding: 18px 16px; font-size: 15px; color: #EDE7DD; }
+  #input .ph { color: #7D7B74; }
+  #input .send { position: absolute; right: 10px; top: 12px; width: 32px; height: 32px; border-radius: 9px; background: #D97757; color: #fff; text-align: center; line-height: 32px; font-weight: 700; }
+  .caret { display: inline-block; width: 2px; height: 18px; background: #EDE7DD; vertical-align: -3px; margin-left: 1px; }
+
+  /* caption */
+  #caption { position: absolute; left: 0; width: 1280px; top: 668px; text-align: center; }
+  #caption span { display: inline-block; padding: 9px 22px; border-radius: 999px; background: rgba(11,18,32,.82); border: 1px solid rgba(255,255,255,.12);
+    font-size: 19px; font-weight: 600; color: #F3EEE6; backdrop-filter: blur(8px); }
+  #caption code { font-family: "SF Mono", Menlo, monospace; color: #4FD1C0; font-size: 17px; }
+
+  /* features */
+  #features { position: absolute; inset: 0; }
+  #themeCard { position: absolute; left: 90px; top: 150px; width: 600px; height: 400px; border-radius: 18px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,.55); }
+  #themeName { position: absolute; left: 20px; top: 16px; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: rgba(127,127,127,.18); font-family: 'SF Mono', Menlo, monospace; }
+  .chip { position: absolute; left: 740px; width: 470px; padding: 18px 22px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+  .chip .h { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .chip .s { font-size: 15px; color: #AFC0CE; }
+  .chip .ic { position: absolute; right: 20px; top: 18px; font-size: 30px; }
+
+  /* outro */
+  #outro { position: absolute; inset: 0; }
+  #outroMascot { position: absolute; left: 540px; top: 90px; width: 200px; height: 200px; }
+  #outroTitle { position: absolute; top: 300px; width: 1280px; text-align: center; font-size: 54px; font-weight: 800; letter-spacing: -1.5px; }
+  #term { position: absolute; left: 120px; top: 400px; width: 1040px; padding: 20px 26px; white-space: nowrap; border-radius: 14px; background: #0A0F18; border: 1px solid rgba(79,209,192,.35); font-size: 16.5px; color: #E6F1F0; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  #term .p { color: #4FD1C0; }
+  #url { position: absolute; top: 500px; width: 1280px; text-align: center; font-size: 20px; color: #9FB3C4; }
+</style></head>
+<body>
+<div id="stage">
+  <div id="bubbles"></div>
+  <svg id="waves" viewBox="0 0 1280 200" preserveAspectRatio="none">
+    <path id="w1" fill="rgba(79,209,192,.10)"/>
+    <path id="w2" fill="rgba(79,209,192,.07)"/>
+    <path id="w3" fill="rgba(217,119,87,.07)"/>
+  </svg>
+
+  <div id="camera">
+    <div id="win">
+      <div id="titlebar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="t">Claude — Code</span></div>
+      <div id="sidebar">
+        <div class="tab"><span>Chat</span><span class="on">Code</span></div>
+        <div class="row on">Login flow diagram</div>
+        <div class="row">Refactor auth module</div>
+        <div class="row">Fix flaky CI test</div>
+        <div class="row">Migrate to Postgres 17</div>
+        <div class="row">Write release notes</div>
+      </div>
+      <div id="chat">
+        <div id="scroll">
+          <div id="userMsg" class="col"></div>
+          <div id="asst1" class="col asst" style="top:92px"><span class="star">✻</span><span class="txt"></span></div>
+          <div id="code1" class="code" style="top:126px"><div class="hd"><span>mermaid</span><span>Copy</span></div><pre class="mono" id="pre1"></pre></div>
+          <div id="diag1" class="diagram" style="top:126px"></div>
+          <div id="asst2" class="col asst" style="top:490px"><span class="star">✻</span><span class="txt"></span></div>
+          <div id="code2" class="code" style="top:524px"><div class="hd"><span>mermaid</span><span>Copy</span></div><pre class="mono" id="pre2"></pre></div>
+          <div id="errLine" class="mono" style="top:672px"></div>
+        </div>
+        <div id="input"><span id="inTxt"></span><span class="send">↑</span></div>
+      </div>
+    </div>
+    <div id="pill"><span class="m mascot"></span><span id="pillTxt">mermaid-render · drawing…</span></div>
+  </div>
+
+  <div id="features">
+    <div id="themeCard"><div id="themeDiag"></div><div id="themeName"></div></div>
+    <div class="chip" id="chip1" style="top:165px"><div class="ic">🔒</div><div class="h">Rendered locally</div><div class="s">Mermaid CLI on your machine. Nothing is sent to an external service.</div></div>
+    <div class="chip" id="chip2" style="top:290px"><div class="ic">🗜️</div><div class="h">~4× smaller with svgo</div><div class="s">A 25-node flowchart goes from 221 KB to 53 KB.</div></div>
+    <div class="chip" id="chip3" style="top:415px"><div class="ic">🎨</div><div class="h">Four themes</div><div class="s">default · dark · neutral · forest</div></div>
+  </div>
+
+  <div id="outro">
+    <div id="outroMascot" class="mascot"></div>
+    <div id="outroTitle">mermaid-<span style="color:#4FD1C0">render</span></div>
+    <div id="term" class="mono"><span class="p">$ </span><span id="termTxt"></span></div>
+    <div id="url">github.com/avallete/claude-mermaid-render</div>
+  </div>
+
+  <div id="intro">
+    <div id="introMascot" class="mascot"></div>
+    <div id="title"></div>
+    <div id="tagline">Your <b>```mermaid</b> blocks, drawn as real diagrams in Claude Code Desktop</div>
+  </div>
+  <div id="badge"><span class="m mascot"></span><span>mermaid-<span style="color:#4FD1C0">render</span></span></div>
+  <div id="caption"><span id="capTxt"></span></div>
+</div>
+
+<script>
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const eOut = k => 1 - Math.pow(1 - k, 3);
+const eInOut = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const eBack = k => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
+const eElastic = k => k === 0 ? 0 : k === 1 ? 1 : Math.pow(2, -10 * k) * Math.sin((k * 10 - .75) * (2 * Math.PI / 3)) + 1;
+function set(el, o) { if (typeof el === 'string') el = $(el); for (const k in o) el.style[k] = o[k]; }
+// window in/out: fades in over [a,a+d] and out over [b-d,b]
+const win = (t, a, b, d = .4) => Math.min(prog(t, a, a + d), 1 - prog(t, b - d, b));
+
+// ---------- mascot ----------
+function initMascot(svgText) {
+  document.querySelectorAll('.mascot').forEach((el, i) => {
+    el.innerHTML = svgText.replace(/id="mr(\w+)"/g, `id="mr$1${i}"`).replace(/url\(#mr(\w+)\)/g, `url(#mr$1${i})`);
+    const s = el.querySelector('svg'); s.setAttribute('width', '100%'); s.setAttribute('height', '100%'); s.style.overflow = 'visible';
+  });
+}
+function animMascot(el, t, opts = {}) {
+  const s = el.querySelector('svg'); if (!s) return;
+  const tail = s.querySelector('.mr-tail'), arm = s.querySelector('.mr-arm-r'), spark = s.querySelector('.mr-spark'), eyes = s.querySelector('.mr-eyes');
+  tail.setAttribute('transform', `rotate(${Math.sin(t * 5) * 7} 100 108)`);
+  const wave = opts.wave ? Math.sin(t * 11) * 22 : Math.sin(t * 3) * 6;
+  arm.setAttribute('transform', `rotate(${wave} 142 82)`);
+  spark.setAttribute('transform', `translate(100 22) rotate(${t * 90}) scale(${1 + Math.sin(t * 6) * .12})`);
+  const blink = (t % 2.7) < .12 ? .1 : 1;
+  eyes.setAttribute('transform', `translate(0 ${70 * (1 - blink)}) scale(1 ${blink})`);
+}
+
+// ---------- diagram ----------
+// geometry of the login flowchart, in a 560x340 box
+const NODES = [
+  { id: 'A', x: 280, y: 34, w: 140, h: 40, shape: 'stadium', label: 'Open app' },
+  { id: 'B', x: 280, y: 108, w: 190, h: 42, shape: 'rect', label: 'Enter credentials' },
+  { id: 'C', x: 280, y: 196, w: 120, h: 70, shape: 'diamond', label: 'Valid?' },
+  { id: 'D', x: 440, y: 296, w: 150, h: 42, shape: 'rect', label: 'Dashboard' },
+  { id: 'E', x: 120, y: 296, w: 150, h: 42, shape: 'rect', label: 'Show error' },
+];
+const EDGES = [
+  { d: 'M280 54 L280 85', label: null },
+  { d: 'M280 129 L280 159', label: null },
+  { d: 'M340 196 L440 196 L440 273', label: 'yes', lx: 395, ly: 196 },
+  { d: 'M220 196 L120 196 L120 273', label: 'no', lx: 165, ly: 196 },
+  { d: 'M45 296 L22 296 L22 108 L183 108', label: 'retry', lx: 22, ly: 200 },
+];
+const THEMES = {
+  default: { bg: '#FFFFFF', fill: '#ECECFF', stroke: '#9370DB', text: '#333333', edge: '#333333', lbg: '#E8E8E8', chip: '#333' },
+  dark:    { bg: '#2B2B2E', fill: '#1F2020', stroke: '#81B1DB', text: '#DDDDDD', edge: '#D3D3D3', lbg: '#585858', chip: '#ddd' },
+  neutral: { bg: '#FAFAFA', fill: '#EEEEEE', stroke: '#999999', text: '#333333', edge: '#666666', lbg: '#E2E2E2', chip: '#333' },
+  forest:  { bg: '#F4F9EC', fill: '#CDE498', stroke: '#13540C', text: '#000000', edge: '#38761D', lbg: '#E8F0D8', chip: '#13540c' },
+};
+function shapePath(n) {
+  const { x, y, w, h } = n, l = x - w / 2, tp = y - h / 2;
+  if (n.shape === 'diamond') return `M${x} ${tp} L${x + w / 2} ${y} L${x} ${tp + h} L${l} ${y} Z`;
+  const r = n.shape === 'stadium' ? h / 2 : 4;
+  return `M${l + r} ${tp} H${l + w - r} A${r} ${r} 0 0 1 ${l + w} ${tp + r} V${tp + h - r} A${r} ${r} 0 0 1 ${l + w - r} ${tp + h} H${l + r} A${r} ${r} 0 0 1 ${l} ${tp + h - r} V${tp + r} A${r} ${r} 0 0 1 ${l + r} ${tp} Z`;
+}
+function buildDiagram(container, pfx) {
+  let s = `<svg viewBox="0 0 560 340" width="100%" height="100%" style="display:block">
+    <defs><marker id="${pfx}ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="ah"/></marker></defs>`;
+  EDGES.forEach((e, i) => {
+    s += `<path class="edge" data-i="${i}" d="${e.d}" fill="none" stroke-width="2" marker-end="url(#${pfx}ar)"/>`;
+  });
+  EDGES.forEach((e, i) => { if (e.label) s += `<g class="elabel" data-i="${i}"><rect x="${e.lx - 22}" y="${e.ly - 11}" width="44" height="22" rx="3"/><text x="${e.lx}" y="${e.ly + 5}" text-anchor="middle" font-size="13">${e.label}</text></g>`; });
+  NODES.forEach((n, i) => {
+    s += `<g class="node" data-i="${i}" style="transform-origin:${n.x}px ${n.y}px"><path d="${shapePath(n)}" stroke-width="1.6"/><text x="${n.x}" y="${n.y + 5}" text-anchor="middle" font-size="15">${n.label}</text></g>`;
+  });
+  container.innerHTML = s + '</svg>';
+  container.querySelectorAll('.edge').forEach(p => { const L = p.getTotalLength(); p.dataset.len = L; p.style.strokeDasharray = L; });
+}
+function paintDiagram(container, th, build /* 0..1 or null */) {
+  const svg = container.querySelector('svg');
+  svg.style.background = th.bg;
+  svg.querySelectorAll('.node path').forEach(p => { p.setAttribute('fill', th.fill); p.setAttribute('stroke', th.stroke); });
+  svg.querySelectorAll('text').forEach(p => { p.setAttribute('fill', th.text); p.style.fontFamily = '"trebuchet ms", verdana, arial, sans-serif'; });
+  svg.querySelectorAll('.edge').forEach(p => p.setAttribute('stroke', th.edge));
+  svg.querySelector('.ah').setAttribute('fill', th.edge);
+  svg.querySelectorAll('.elabel rect').forEach(p => p.setAttribute('fill', th.lbg));
+  const b = build == null ? 10 : build;
+  // nodes pop in order, edges draw between them
+  svg.querySelectorAll('.node').forEach((g, i) => {
+    const k = clamp((b - i * .17) / .3);
+    const sc = k <= 0 ? 0 : eBack(k);
+    g.style.transform = `scale(${sc})`; g.style.opacity = clamp(k * 3);
+  });
+  svg.querySelectorAll('.edge').forEach((p, i) => {
+    const order = [0.12, 0.3, 0.55, 0.6, 0.78][i];
+    const k = eInOut(clamp((b - order) / .22));
+    p.style.strokeDashoffset = p.dataset.len * (1 - k);
+    p.setAttribute('marker-end', k > .97 ? p.getAttribute('marker-end') || '' : '');
+  });
+  svg.querySelectorAll('.edge').forEach((p, i) => {
+    const order = [0.12, 0.3, 0.55, 0.6, 0.78][i];
+    const k = clamp((b - order) / .22);
+    p.setAttribute('marker-end', k >= 1 ? `url(#${container.id}ar)` : 'none');
+  });
+  svg.querySelectorAll('.elabel').forEach(g => {
+    const i = +g.dataset.i, order = [0.12, 0.3, 0.55, 0.6, 0.78][i];
+    const k = clamp((b - order - .15) / .15);
+    g.style.opacity = k; g.style.transformOrigin = 'center'; g.style.transformBox = 'fill-box'; g.style.transform = `scale(${lerp(.6, 1, eBack(k))})`;
+  });
+}
+function mixHex(a, b, k) {
+  const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
+  return '#' + pa.map((v, i) => Math.round(lerp(v, pb[i], k)).toString(16).padStart(2, '0')).join('');
+}
+const mixTheme = (a, b, k) => Object.fromEntries(Object.keys(a).map(key => [key, mixHex(a[key], b[key], k)]));
+
+// ---------- content ----------
+const PROMPT = 'Reply with a mermaid flowchart of a login flow.';
+const CODE1 = [
+  ['<span class="tok-c">```mermaid</span>', 10],
+  ['<span class="tok-k">flowchart</span> <span class="tok-o">TD</span>', 12],
+  ['  <span class="tok-n">A</span>([<span class="tok-s">Open app</span>]) <span class="tok-o">--></span> <span class="tok-n">B</span>[<span class="tok-s">Enter credentials</span>]', 38],
+  ['  <span class="tok-n">B</span> <span class="tok-o">--></span> <span class="tok-n">C</span>{<span class="tok-s">Valid?</span>}', 18],
+  ['  <span class="tok-n">C</span> <span class="tok-o">-- yes --></span> <span class="tok-n">D</span>[<span class="tok-s">Dashboard</span>]', 28],
+  ['  <span class="tok-n">C</span> <span class="tok-o">-- no --></span> <span class="tok-n">E</span>[<span class="tok-s">Show error</span>]', 28],
+  ['  <span class="tok-n">E</span> <span class="tok-o">-- retry --></span> <span class="tok-n">B</span>', 20],
+  ['<span class="tok-c">```</span>', 3],
+];
+const CODE2 = [
+  ['<span class="tok-c">```mermaid</span>', 10],
+  ['<span class="tok-k">flowchart</span> <span class="tok-o">TD</span>', 12],
+  ['  <span class="tok-n">A</span> <span class="tok-o">--></span>', 7],
+  ['<span class="tok-c">```</span>', 3],
+];
+const ERR = 'mermaid: Parse error on line 3: Expecting \'NODE_STRING\', got \'EOF\'';
+const INSTALL = 'claude plugin install mermaid-render --marketplace avallete/claude-mermaid-render';
+
+function codeHTML(lines, k, t) {
+  // k: 0..1 stream progress across lines; each line fades in
+  const n = lines.length; let html = '';
+  lines.forEach(([l], i) => {
+    const lk = clamp(k * n - i);
+    if (lk <= 0) return;
+    html += `<div style="opacity:${eOut(lk)};transform:translateX(${(1 - eOut(lk)) * -10}px)">${l}</div>`;
+  });
+  return html;
+}
+
+// ---------- background ----------
+const BUB = Array.from({ length: 26 }, (_, i) => ({ x: (i * 137.5) % 1280, s: 6 + (i * 7) % 22, sp: 30 + (i * 13) % 50, ph: (i * 53) % 720, wob: 10 + i % 15 }));
+$('bubbles').innerHTML = BUB.map((_, i) => `<div class="bubble" id="b${i}"></div>`).join('');
+function wavePath(t, amp, len, sp, base) {
+  let d = `M0 200 L0 ${base}`;
+  for (let x = 0; x <= 1280; x += 20) d += ` L${x} ${base + Math.sin(x / len + t * sp) * amp + Math.sin(x / (len * .43) - t * sp * 1.3) * amp * .4}`;
+  return d + ' L1280 200 Z';
+}
+
+// ---------- caption schedule ----------
+const CAPS = [
+  [3.9, 6.4, 'Ask Claude for a diagram'],
+  [6.5, 8.9, 'It streams in as a <code>```mermaid</code> block…'],
+  [9.0, 12.9, '…then mermaid-render draws it, right in the transcript'],
+  [13.3, 17.2, 'Broken syntax? The code stays, with the error under it'],
+];
+
+// ---------- main render ----------
+window.DURATION = 26;
+window.render = function (t) {
+  // background
+  BUB.forEach((b, i) => {
+    const y = 720 - ((t * b.sp + b.ph) % 820);
+    set('b' + i, { left: b.x + Math.sin(t * 1.3 + i) * b.wob + 'px', top: y + 'px', width: b.s + 'px', height: b.s + 'px' });
+  });
+  $('w1').setAttribute('d', wavePath(t, 14, 90, 1.2, 120));
+  $('w2').setAttribute('d', wavePath(t + 3, 18, 130, .9, 100));
+  $('w3').setAttribute('d', wavePath(t + 7, 10, 70, 1.6, 150));
+
+  // ===== intro (0 - 3.3) =====
+  const introOut = eInOut(prog(t, 2.7, 3.4));
+  const mIn = prog(t, .15, 1.05);
+  set('introMascot', {
+    transform: `translateY(${(1 - eOut(mIn)) * 220 + Math.sin(t * 2.4) * 8 - introOut * 60}px) scale(${(mIn > 0 ? eElastic(mIn) : 0) * (1 - introOut * .6)}) rotate(${(1 - eOut(mIn)) * -25}deg)`,
+    opacity: 1 - introOut,
+  });
+  animMascot($('introMascot'), t, { wave: t > 1 && t < 2.6 });
+  if (!$('title').dataset.init) {
+    $('title').innerHTML = [...'mermaid-render'].map((c, i) => `<span class="${i > 7 ? 'accent' : ''}">${c}</span>`).join('');
+    $('title').dataset.init = 1;
+  }
+  [...$('title').children].forEach((sp, i) => {
+    const k = prog(t, .75 + i * .045, 1.25 + i * .045);
+    sp.style.transform = `translateY(${(1 - eBack(k)) * 50 - introOut * 40}px)`;
+    sp.style.opacity = clamp(k * 2) * (1 - introOut);
+  });
+  const tg = prog(t, 1.5, 2.1);
+  set('tagline', { opacity: eOut(tg) * (1 - introOut), transform: `translateY(${(1 - eOut(tg)) * 16 - introOut * 30}px)` });
+
+  // badge (appears as intro leaves, gone during outro)
+  const bk = prog(t, 3.0, 3.6), bo = prog(t, 21.3, 21.8);
+  set('badge', { opacity: eOut(bk) * (1 - bo), transform: `translateX(${(1 - eOut(bk)) * -30}px)` });
+  animMascot($('badge').querySelector('.mascot'), t);
+
+  // ===== app window (3.0 - 17.6) =====
+  const wIn = eOut(prog(t, 3.0, 3.9)), wOut = eInOut(prog(t, 17.2, 17.9));
+  // camera: zoom on the code block while it transforms
+  const zIn = eInOut(prog(t, 8.3, 9.2)), zOut = eInOut(prog(t, 11.6, 12.5));
+  const z = zIn * (1 - zOut);
+  const camS = lerp(1, 1.28, z) * lerp(.9, 1, wIn) * lerp(1, .85, wOut);
+  const camY = (1 - wIn) * 260 + z * -20 - wOut * 40;
+  set('camera', { transformOrigin: '745px 330px', transform: `translate(${z * -110}px, ${camY}px) scale(${camS})`, opacity: wIn * (1 - wOut) });
+
+  // typing prompt
+  const ty = prog(t, 4.0, 5.4);
+  const typed = PROMPT.slice(0, Math.round(ty * PROMPT.length));
+  const sent = t >= 5.65;
+  const caretOn = Math.floor(t * 2.2) % 2 === 0;
+  $('inTxt').innerHTML = sent || ty <= 0 ? `<span class="ph">Reply to Claude…</span>` : typed + (caretOn || ty < 1 ? '<span class="caret"></span>' : '');
+  set($('input').querySelector('.send'), { transform: `scale(${t > 5.45 && t < 5.7 ? .85 : 1})`, opacity: ty >= 1 && !sent ? 1 : .45 });
+  const um = prog(t, 5.6, 6.0);
+  $('userMsg').textContent = PROMPT;
+  set('userMsg', { opacity: eOut(um), transform: `translateY(${(1 - eBack(um)) * 40}px) scale(${lerp(.92, 1, eOut(um))})` });
+
+  // assistant text + code streaming
+  const a1 = prog(t, 6.1, 6.6), a1t = "Here's the login flow:";
+  $('asst1').querySelector('.txt').textContent = a1t.slice(0, Math.round(a1 * a1t.length));
+  set('asst1', { opacity: t > 6.05 ? 1 : 0 });
+  set($('asst1').querySelector('.star'), { transform: `rotate(${t * 120}deg)`, display: 'inline-block' });
+
+  const c1 = prog(t, 6.7, 8.3);
+  const dissolve = prog(t, 9.4, 10.0);
+  $('pre1').innerHTML = codeHTML(CODE1, c1, t);
+  [...$('pre1').children].forEach((d, i) => {
+    const k = eInOut(clamp(dissolve * 1.6 - i * .08));
+    if (k > 0) { d.style.opacity = (1 - k) * d.style.opacity; d.style.filter = `blur(${k * 6}px)`; d.style.transform = `translateY(${-k * 12}px) scale(${1 - k * .1})`; }
+  });
+  const codeH = 30 + 20 + 22 * Math.min(CODE1.length, Math.ceil(c1 * CODE1.length));
+  set('code1', { opacity: c1 > 0 ? 1 - prog(t, 9.75, 10.1) : 0, height: codeH + 'px', transform: `scale(${lerp(1, .98, dissolve)})` });
+
+  // diagram card grows in place of the code
+  const dk = prog(t, 9.7, 10.4), build = prog(t, 9.9, 12.0);
+  const diagH = lerp(codeH, 344, eInOut(dk));
+  set('diag1', { opacity: eOut(prog(t, 9.7, 10.0)), height: diagH + 'px' });
+  paintDiagram($('diag1'), THEMES.default, build * 1.15);
+
+  // rendering pill (scan beam)
+  const pv = win(t, 8.5, 10.1, .3);
+  const pill2 = win(t, 14.6, 15.6, .25);
+  const pillY = t < 12 ? 228 : 324;
+  set('pill', { left: (t < 12 ? 850 : 850) + 'px', top: (pillY + (1 - eOut(Math.max(pv, pill2))) * 14) + 'px', opacity: Math.max(pv, pill2), transform: `scale(${lerp(.8, 1, eBack(Math.max(pv, pill2)))})` });
+  animMascot($('pill').querySelector('.mascot'), t, { wave: true });
+  $('pillTxt').textContent = 'mermaid-render · drawing' + '...'.slice(0, 1 + Math.floor(t * 4) % 3);
+
+  // ===== error case (12.8 - 17) =====
+  const sc = eInOut(prog(t, 12.7, 13.5));
+  set('scroll', { transform: `translateY(${sc * -300}px)` });
+  const a2 = prog(t, 13.5, 14.0), a2t = 'And one with a typo, on purpose:';
+  $('asst2').querySelector('.txt').textContent = a2t.slice(0, Math.round(a2 * a2t.length));
+  set('asst2', { opacity: t > 13.45 ? 1 : 0 });
+  set($('asst2').querySelector('.star'), { transform: `rotate(${t * 120}deg)` });
+  const c2 = prog(t, 14.0, 14.6);
+  $('pre2').innerHTML = codeHTML(CODE2, c2, t);
+  set('code2', { opacity: c2 > 0 ? 1 : 0, height: (50 + 22 * Math.ceil(c2 * CODE2.length)) + 'px' });
+  const ek = prog(t, 15.5, 16.0);
+  const shake = Math.sin(prog(t, 15.5, 16.1) * Math.PI * 6) * (1 - prog(t, 15.5, 16.1)) * 8;
+  $('errLine').textContent = ERR.slice(0, Math.round(prog(t, 15.5, 16.3) * ERR.length));
+  set('errLine', { opacity: eOut(ek), transform: `translateX(${shake}px)` });
+  set('code2', { boxShadow: ek > 0 ? `0 0 0 ${2 * win(t, 15.5, 17, .3)}px rgba(255,138,128,.55)` : 'none' });
+
+  // ===== features (17.5 - 21.6) =====
+  const fIn = eOut(prog(t, 17.6, 18.3)), fOut = eInOut(prog(t, 21.0, 21.6));
+  set('features', { opacity: fIn * (1 - fOut), transform: `translateY(${(1 - fIn) * 40 - fOut * 30}px)` });
+  set('themeCard', { transform: `perspective(1200px) rotateY(${lerp(18, 6, fIn) + Math.sin(t * .9) * 2}deg) rotateX(${2 + Math.sin(t * .7) * 1.5}deg)` });
+  const order = ['default', 'dark', 'neutral', 'forest', 'default'];
+  const tt = clamp((t - 18.2) / .8, 0, 3.99), ti = Math.floor(tt), tk = eInOut(clamp((tt - ti) / .3));
+  const th = mixTheme(THEMES[order[ti]], THEMES[order[ti + 1]], tk);
+  set('themeCard', { background: th.bg });
+  paintDiagram($('themeDiag'), th, null);
+  const tname = order[tk > .5 ? ti + 1 : ti];
+  $('themeName').textContent = 'theme: ' + tname; set('themeName', { color: th.chip });
+  ['chip1', 'chip2', 'chip3'].forEach((c, i) => {
+    const k = prog(t, 18.1 + i * .35, 18.8 + i * .35);
+    set(c, { opacity: eOut(k), transform: `translateX(${(1 - eBack(k)) * 80}px)` });
+  });
+
+  // ===== outro (21.4 - 26) =====
+  const oIn = prog(t, 21.5, 22.4);
+  set('outro', { opacity: eOut(prog(t, 21.4, 21.9)) * (1 - prog(t, 25.6, 26)) });
+  set('outroMascot', { transform: `translateY(${Math.sin(t * 2.4) * 8}px) scale(${oIn > 0 ? eElastic(oIn) : 0})` });
+  animMascot($('outroMascot'), t, { wave: true });
+  const ot = prog(t, 21.8, 22.4);
+  set('outroTitle', { opacity: eOut(ot), transform: `translateY(${(1 - eBack(ot)) * 30}px)` });
+  const tk2 = prog(t, 22.4, 22.8);
+  set('term', { opacity: eOut(tk2), transform: `translateY(${(1 - eOut(tk2)) * 20}px)` });
+  const it = prog(t, 22.7, 24.4);
+  $('termTxt').innerHTML = INSTALL.slice(0, Math.round(it * INSTALL.length)) + (Math.floor(t * 2.2) % 2 === 0 || it < 1 ? '<span class="caret" style="background:#4FD1C0"></span>' : '');
+  set('url', { opacity: eOut(prog(t, 24.3, 24.8)) });
+
+  // captions
+  let cap = null;
+  for (const [a, b, txt] of CAPS) if (t >= a && t < b) cap = [a, b, txt];
+  if (cap) {
+    const k = win(t, cap[0], cap[1], .3);
+    if ($('capTxt').innerHTML !== cap[2]) $('capTxt').innerHTML = cap[2];
+    set('caption', { opacity: k, transform: `translateY(${(1 - eOut(k)) * 14}px)` });
+  } else set('caption', { opacity: 0 });
+};
+
+window.init = function (svgText) {
+  initMascot(svgText);
+  buildDiagram($('diag1'), 'diag1');
+  buildDiagram($('themeDiag'), 'themeDiag');
+  set('themeDiag', { position: 'absolute', left: '20px', top: '30px', width: '560px', height: '340px' });
+};
+</script>
+</body></html>
