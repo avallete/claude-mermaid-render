@@ -93,9 +93,9 @@ test('the terminal is left to the engine', async ($, on) => {
   await ui.unmount()
 })
 
-test('the diagram is sized from its viewBox, capped to the column', () => {
+test('the diagram is sized from its viewBox', () => {
   expect(size('<svg width="100%" style="max-width: 207px" viewBox="4 4 207.4 384"><g/></svg>')).toEqual({ width: 207, height: 384 })
-  expect(size('<svg viewBox="0 0 1440 200"><g/></svg>')).toEqual({ width: 720, height: 100 })
+  expect(size('<svg viewBox="0 0 1440 200"><g/></svg>')).toEqual({ width: 1440, height: 200 })
   expect(size('<svg><g/></svg>')).toEqual({})
   expect(size('<svg viewBox="0 0 10 10"><foreignObject/></svg>')).toEqual({})
 })

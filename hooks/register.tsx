@@ -114,13 +114,20 @@ const fs = require('fs'), path = require('path')
 const root = path.join(path.dirname(process.argv[1]), '..')
 const lib = ['dist/svgo-node.cjs', 'lib/svgo-node.js'].map(f => path.join(root, f)).find(f => fs.existsSync(f))
 const { optimize } = require(lib)
-const DEFAULTS = /^(opacity:1|fill-opacity:1|stroke:none|display:inline|visibility:inherit|clip-path:none|mask:none|filter:none|transform:none|font-weight:normal|font-style:normal|white-space:pre|text-anchor:middle|dominant-baseline:central|alignment-baseline:central|line-height:[\\d.]+px)$/
+const DEFAULTS = /^(opacity:1|fill-opacity:1|stroke:none|display:inline|visibility:inherit|clip-path:none|mask:none|filter:none|transform:none|font-weight:normal|font-style:normal|white-space:pre|line-height:[\\d.]+px)$/
+// Desktop ignores alignment in a style attribute, and some labels (sequence
+// actors) are centred by the style alone: alignment moves to attributes.
+const ALIGN = ['text-anchor', 'dominant-baseline', 'alignment-baseline']
 const slimText = { name: 'slimTextLabels', fn: () => ({ element: { enter: (node, parent) => {
   for (const k of Object.keys(node.attributes)) if (k.startsWith('data-merman') || k === 'xml:space') delete node.attributes[k]
   if (node.attributes.class === 'merman-foreignobject-fallback-text') delete node.attributes.class
   const style = node.attributes.style
   if (style == null) return
-  const kept = style.split(';').map(d => d.trim()).filter(d => d && !DEFAULTS.test(d.replace(/\\s+/g, '')))
+  const kept = style.split(';').map(d => d.trim()).filter(d => {
+    const [k, v] = d.replace(/\\s+/g, '').split(':')
+    if (ALIGN.includes(k)) { node.attributes[k] = v; return false }
+    return d && !DEFAULTS.test(d.replace(/\\s+/g, ''))
+  })
   if (kept.length) node.attributes.style = kept.join(';'); else delete node.attributes.style
   if (node.name === 'rect' && /opacity:\\s*0(;|$)/.test(style) && /fill:\\s*none/.test(style)) parent.children = parent.children.filter(c => c !== node)
 } } }) }
@@ -146,19 +153,17 @@ async function optimize($: EngineInterface, found: Found, svg: string) {
 }
 
 // Mermaid's root is width="100%" with a CSS max-width, which leaves the Svg
-// element no size of its own; it is drawn small. Size it from the viewBox,
-// scaled down to fit the transcript column. Desktop drops HTML labels
-// (foreignObject) from a sized Svg, so those diagrams keep the default; merman
-// is run with resvg-safe, which writes plain SVG text.
-const MAX_WIDTH = 720
+// element no size of its own; it is drawn small. Size it from the viewBox;
+// Desktop scales one wider than the transcript column down to fit. Desktop
+// drops HTML labels (foreignObject) from a sized Svg, so those diagrams keep
+// the default; merman is run with resvg-safe, which writes plain SVG text.
 export function size(svg: string): { width?: number; height?: number } {
   if (svg.includes('<foreignObject')) return {}
   const root = svg.slice(0, svg.indexOf('>') + 1)
   const box = root.match(/viewBox="[-\d.]+[ ,]+[-\d.]+[ ,]+([\d.]+)[ ,]+([\d.]+)"/)
   const w = Number(box?.[1]), h = Number(box?.[2])
   if (!(w > 0 && h > 0)) return {}
-  const k = Math.min(1, MAX_WIDTH / w)
-  return { width: Math.round(w * k), height: Math.round(h * k) }
+  return { width: Math.round(w), height: Math.round(h) }
 }
 
 // Desktop draws no zoom of its own for a plugin's Svg, and a Link opens only
