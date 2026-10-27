@@ -7,7 +7,6 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/eefc8cce-9868-4afd-9867-c619ce6808fd" width="800" alt="mermaid-render demo: a mermaid code block in a Claude reply turns into a diagram">
   <br>
-  <a href="https://github.com/user-attachments/assets/bcc5ab24-1f1a-48c1-8d58-9fa26bdaa085">Watch in 1080p (MP4)</a>
 </p>
 
 A Claude Code mod that draws ```` ```mermaid ```` code blocks in Claude's replies as real diagrams in **Claude Code Desktop** (Code tab, local sessions).
