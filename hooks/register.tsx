@@ -117,6 +117,19 @@ async function optimize($: EngineInterface, found: Found, svg: string) {
   }
 }
 
+// Mermaid's root is width="100%" with a CSS max-width, which leaves the Svg
+// element no size of its own; it is drawn small. Size it from the viewBox,
+// scaled down to fit the transcript column.
+const MAX_WIDTH = 720
+export function size(svg: string): { width?: number; height?: number } {
+  const root = svg.slice(0, svg.indexOf('>') + 1)
+  const box = root.match(/viewBox="[-\d.]+[ ,]+[-\d.]+[ ,]+([\d.]+)[ ,]+([\d.]+)"/)
+  const w = Number(box?.[1]), h = Number(box?.[2])
+  if (!(w > 0 && h > 0)) return {}
+  const k = Math.min(1, MAX_WIDTH / w)
+  return { width: Math.round(w * k), height: Math.round(h * k) }
+}
+
 const NPX = ['npx', '-y', '-p', '@mermaid-js/mermaid-cli@11', 'mmdc']
 
 type Config = {
@@ -199,6 +212,7 @@ export const register: Register = (on, options) => {
           return (
             <Svg
               source={done.svg}
+              {...size(done.svg)}
               alt={`Mermaid diagram:\n${part.source}`}
               isInteractive
             />

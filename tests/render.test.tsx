@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { size } from '../hooks/register'
+
 const TEXT = 'Here is the flow:\n\n```mermaid\ngraph TD\n  A-->B\n```\n\nDone.'
 
 const RAW = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10.123456789" height="10"/></svg>'
@@ -89,4 +91,10 @@ test('the terminal is left to the engine', async ($, on) => {
   expect(calls).toBe(0)
   expect(await ui.find({ type: 'Text', text: 'engine' })).toBeDefined()
   await ui.unmount()
+})
+
+test('the diagram is sized from its viewBox, capped to the column', () => {
+  expect(size('<svg width="100%" style="max-width: 207px" viewBox="4 4 207.4 384"><g/></svg>')).toEqual({ width: 207, height: 384 })
+  expect(size('<svg viewBox="0 0 1440 200"><g/></svg>')).toEqual({ width: 720, height: 100 })
+  expect(size('<svg><g/></svg>')).toEqual({})
 })
