@@ -106,16 +106,28 @@ async function run($: EngineInterface, argv: string[], stdin: string) {
 // its CLI, which takes no inline config: convertShapeToPath must stay off, as
 // Mermaid fills shapes through CSS such as `.node rect`, and a rect turned into
 // a path loses its fill and draws black.
+// merman's resvg-safe text labels repeat every default in each label's style
+// and keep invisible stand-in boxes; slimTextLabels drops them (~30% smaller).
 // Optional: without a global svgo, or if it fails, the raw SVG is kept.
 const SVGO = `
 const fs = require('fs'), path = require('path')
 const root = path.join(path.dirname(process.argv[1]), '..')
 const lib = ['dist/svgo-node.cjs', 'lib/svgo-node.js'].map(f => path.join(root, f)).find(f => fs.existsSync(f))
 const { optimize } = require(lib)
+const DEFAULTS = /^(opacity:1|fill-opacity:1|stroke:none|display:inline|visibility:inherit|clip-path:none|mask:none|filter:none|transform:none|font-weight:normal|font-style:normal|white-space:pre|text-anchor:middle|dominant-baseline:central|alignment-baseline:central|line-height:[\\d.]+px)$/
+const slimText = { name: 'slimTextLabels', fn: () => ({ element: { enter: (node, parent) => {
+  for (const k of Object.keys(node.attributes)) if (k.startsWith('data-merman') || k === 'xml:space') delete node.attributes[k]
+  if (node.attributes.class === 'merman-foreignobject-fallback-text') delete node.attributes.class
+  const style = node.attributes.style
+  if (style == null) return
+  const kept = style.split(';').map(d => d.trim()).filter(d => d && !DEFAULTS.test(d.replace(/\\s+/g, '')))
+  if (kept.length) node.attributes.style = kept.join(';'); else delete node.attributes.style
+  if (node.name === 'rect' && /opacity:\\s*0(;|$)/.test(style) && /fill:\\s*none/.test(style)) parent.children = parent.children.filter(c => c !== node)
+} } }) }
 process.stdout.write(optimize(fs.readFileSync(0, 'utf8'), {
   multipass: true,
   floatPrecision: 1,
-  plugins: [{ name: 'preset-default', params: { overrides: { convertShapeToPath: false } } }],
+  plugins: [slimText, { name: 'preset-default', params: { overrides: { convertShapeToPath: false } } }],
 }).data)
 `
 
