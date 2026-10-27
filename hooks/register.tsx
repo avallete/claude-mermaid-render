@@ -161,6 +161,48 @@ export function size(svg: string): { width?: number; height?: number } {
   return { width: Math.round(w * k), height: Math.round(h * k) }
 }
 
+// Desktop draws no zoom of its own for a plugin's Svg, and a Link opens only
+// https; the button writes the diagram into a page that pans and zooms and
+// opens it in the default browser.
+const VIEWER = `
+const fs = require('fs'), os = require('os'), path = require('path'), crypto = require('crypto')
+const { spawn } = require('child_process')
+const svg = fs.readFileSync(0, 'utf8')
+const dir = path.join(os.tmpdir(), 'mermaid-render')
+fs.mkdirSync(dir, { recursive: true })
+const file = path.join(dir, crypto.createHash('sha1').update(svg).digest('hex').slice(0, 16) + '.html')
+fs.writeFileSync(file, \`<!doctype html><meta charset="utf-8"><title>Mermaid diagram</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;user-select:none;background:#fff;font:13px system-ui,sans-serif}
+#c{position:absolute;left:0;top:0;transform-origin:0 0;cursor:grab}#c.drag{cursor:grabbing}
+#h{position:fixed;right:12px;bottom:12px;color:#666;background:#fffd;padding:4px 8px;border-radius:6px;border:1px solid #ddd}</style>
+<div id="c">\${svg}</div><div id="h">scroll or pinch to zoom · drag to pan · double-click to fit</div>
+<script>
+const c = document.getElementById('c'), s = c.querySelector('svg'), vb = s.viewBox.baseVal
+s.setAttribute('width', vb.width); s.setAttribute('height', vb.height); s.style.maxWidth = 'none'
+let k = 1, x = 0, y = 0
+const draw = () => { c.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + k + ')' }
+const fit = () => { k = Math.min(innerWidth / vb.width, innerHeight / vb.height) * 0.95; x = (innerWidth - vb.width * k) / 2; y = (innerHeight - vb.height * k) / 2; draw() }
+const zoom = (f, px, py) => { const n = Math.min(40, Math.max(0.05, k * f)); x = px - (px - x) * n / k; y = py - (py - y) * n / k; k = n; draw() }
+addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX, e.clientY) }, { passive: false })
+let p = null
+c.addEventListener('pointerdown', e => { p = [e.clientX - x, e.clientY - y]; c.classList.add('drag'); c.setPointerCapture(e.pointerId) })
+c.addEventListener('pointermove', e => { if (p) { x = e.clientX - p[0]; y = e.clientY - p[1]; draw() } })
+c.addEventListener('pointerup', () => { p = null; c.classList.remove('drag') })
+addEventListener('dblclick', fit); addEventListener('resize', fit)
+addEventListener('keydown', e => { if (e.key === '+' || e.key === '=') zoom(1.25, innerWidth / 2, innerHeight / 2); if (e.key === '-') zoom(0.8, innerWidth / 2, innerHeight / 2); if (e.key === '0') fit() })
+fit()
+</script>\`)
+const [cmd, ...args] = process.platform === 'darwin' ? ['open', file]
+  : process.platform === 'win32' ? ['cmd.exe', '/d', '/c', 'start', '""', file] : ['xdg-open', file]
+spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref()
+`
+
+async function openFull($: EngineInterface, cfg: Config, svg: string) {
+  const found = await (cfg.found ??= locate($))
+  if (!found.node) return
+  await $.process.run([found.node, '-e', VIEWER], { cwd: CWD, stdin: svg, timeoutMs: 15_000 })
+}
+
 const NPX = ['npx', '-y', '-p', '@mermaid-js/mermaid-cli@11', 'mmdc']
 
 type Config = {
@@ -218,7 +260,7 @@ export const register: Register = (on, options) => {
     const parts = split(e.props.text)
     if (!parts.some(p => p.kind === 'mermaid')) return next(e)
 
-    const { Box, Markdown, Svg, Text } = $.ui.resolve(e)
+    const { Box, Button, Markdown, Svg, Text } = $.ui.resolve(e)
     const cache = await read($, diagrams)
 
     return (
@@ -241,12 +283,15 @@ export const register: Register = (on, options) => {
             )
           }
           return (
-            <Svg
-              source={done.svg}
-              {...size(done.svg)}
-              alt={`Mermaid diagram:\n${part.source}`}
-              isInteractive
-            />
+            <Box key={`d${i}`} flexDirection="column" alignItems="center">
+              <Svg
+                source={done.svg}
+                {...size(done.svg)}
+                alt={`Mermaid diagram:\n${part.source}`}
+                isInteractive
+              />
+              <Button key={`open${i}`} label="Open full size" plain dimColor onPress={() => openFull($, cfg, done.svg)} />
+            </Box>
           )
         })}
       </Box>
