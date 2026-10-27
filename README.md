@@ -140,12 +140,3 @@ claude plugin validate .
 claude plugin test .
 claude --plugin-dir .
 ```
-
-To re-render the demo after editing `assets/demo/demo.html` (needs Google Chrome, Playwright and ffmpeg), then drag the two files into a GitHub comment and swap the README links for the new attachment URLs. The video files are not committed so they stay out of clones.
-
-```bash
-npm i --no-save playwright
-node assets/demo/record.js /tmp/mr-frames all
-ffmpeg -framerate 30 -i /tmp/mr-frames/%05d.png -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart /tmp/mermaid-render-demo.mp4
-ffmpeg -framerate 30 -i /tmp/mr-frames/%05d.png -vf "fps=15,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" /tmp/mermaid-render-demo.gif
-```
