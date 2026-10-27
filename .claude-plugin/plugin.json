@@ -9,7 +9,7 @@
     "command": {
       "type": "string",
       "title": "Renderer command",
-      "description": "Mermaid CLI invocation; input/output flags are appended. Empty: a global mmdc found on PATH, else npx",
+      "description": "Renderer invocation taking mmdc flags; input/output flags are appended. Empty: merman-cli on PATH, else a global mmdc, else npx",
       "default": ""
     },
     "theme": {
