@@ -162,14 +162,19 @@ export function size(svg: string): { width?: number; height?: number } {
 }
 
 // Desktop draws no zoom of its own for a plugin's Svg, and a Link opens only
-// https; the button writes the diagram into a page that pans and zooms and
-// opens it in the default browser.
+// https. The page that pans and zooms is written into the session folder,
+// which a relative Markdown link opens in Desktop's side panel (as source
+// first: the panel's View mode runs it), and into a temp folder for the
+// default browser. Prints the file written; "open" also opens it.
 const VIEWER = `
 const fs = require('fs'), os = require('os'), path = require('path'), crypto = require('crypto')
 const { spawn } = require('child_process')
+const [target, mode] = process.argv.slice(1)
 const svg = fs.readFileSync(0, 'utf8')
-const dir = path.join(os.tmpdir(), 'mermaid-render')
+const dir = target || path.join(os.tmpdir(), 'mermaid-render')
 fs.mkdirSync(dir, { recursive: true })
+const ignore = path.join(dir, '.gitignore')
+if (!fs.existsSync(ignore)) fs.writeFileSync(ignore, '*\\n')
 const file = path.join(dir, crypto.createHash('sha1').update(svg).digest('hex').slice(0, 16) + '.html')
 fs.writeFileSync(file, \`<!doctype html><meta charset="utf-8"><title>Mermaid diagram</title>
 <style>html,body{margin:0;height:100%;overflow:hidden;user-select:none;background:#fff;font:13px system-ui,sans-serif}
@@ -192,15 +197,34 @@ addEventListener('dblclick', fit); addEventListener('resize', fit)
 addEventListener('keydown', e => { if (e.key === '+' || e.key === '=') zoom(1.25, innerWidth / 2, innerHeight / 2); if (e.key === '-') zoom(0.8, innerWidth / 2, innerHeight / 2); if (e.key === '0') fit() })
 fit()
 </script>\`)
-const [cmd, ...args] = process.platform === 'darwin' ? ['open', file]
-  : process.platform === 'win32' ? ['cmd.exe', '/d', '/c', 'start', '""', file] : ['xdg-open', file]
-spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref()
+process.stdout.write(file)
+if (mode === 'open') {
+  const [cmd, ...args] = process.platform === 'darwin' ? ['open', file]
+    : process.platform === 'win32' ? ['cmd.exe', '/d', '/c', 'start', '""', file] : ['xdg-open', file]
+  spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref()
+}
 `
 
 async function openFull($: EngineInterface, cfg: Config, svg: string) {
   const found = await (cfg.found ??= locate($))
   if (!found.node) return
-  await $.process.run([found.node, '-e', VIEWER], { cwd: CWD, stdin: svg, timeoutMs: 15_000 })
+  await $.process.run([found.node, '-e', VIEWER, '', 'open'], { cwd: CWD, stdin: svg, timeoutMs: 15_000 })
+}
+
+const PAGES = '.mermaid-render'
+
+// Returns the page's path relative to the session folder, for a Markdown link.
+async function writePage($: EngineInterface, found: Found, svg: string) {
+  if (!found.node) return undefined
+  try {
+    const cwd = await $.session.cwd()
+    const sep = cwd.includes('\\') && !cwd.includes('/') ? '\\' : '/'
+    const out = await $.process.run([found.node, '-e', VIEWER, cwd + sep + PAGES], { cwd: CWD, stdin: svg, timeoutMs: 15_000 })
+    const name = out.stdout.trim().split(/[\\/]/).pop()
+    return out.exitCode === 0 && name ? `${PAGES}/${name}` : undefined
+  } catch {
+    return undefined
+  }
 }
 
 const NPX = ['npx', '-y', '-p', '@mermaid-js/mermaid-cli@11', 'mmdc']
@@ -237,7 +261,8 @@ async function render($: EngineInterface, cfg: Config, key: string, source: stri
       result = { error: (out.stderr || out.stdout).trim().split('\n').slice(-3).join('\n') || `exit ${out.exitCode}` }
     } else {
       const svg = await optimize($, found, raw)
-      result = svg.length > 131_072 ? { error: 'diagram too large to draw inline' } : { svg }
+      result = svg.length > 131_072 ? { error: 'diagram too large to draw inline' }
+        : { svg, page: await writePage($, found, svg) }
     }
   } catch (err) {
     result = { error: err instanceof Error ? err.message : String(err) }
@@ -290,7 +315,10 @@ export const register: Register = (on, options) => {
                 alt={`Mermaid diagram:\n${part.source}`}
                 isInteractive
               />
-              <Button key={`open${i}`} label="Open full size" plain dimColor onPress={() => openFull($, cfg, done.svg)} />
+              <Box key={`a${i}`} flexDirection="row" gap={2}>
+                {done.page && <Markdown key={`p${i}`} dimColor text={`[Open full size](${done.page}) (switch the panel to View)`} />}
+                <Button key={`open${i}`} label="Open in browser" plain dimColor onPress={() => openFull($, cfg, done.svg)} />
+              </Box>
             </Box>
           )
         })}

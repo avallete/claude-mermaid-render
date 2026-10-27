@@ -13,6 +13,8 @@ A Claude Code mod that draws ```` ```mermaid ```` code blocks in Claude's replie
 
 While a diagram renders, the reply shows the original code block. If rendering fails, the code block stays and a short `mermaid: <error>` line appears under it. Other surfaces (CLI, VS Code, mobile) are left untouched. Diagrams are rendered locally; nothing is sent to an external service.
 
+Under each diagram, **Open full size** opens a page that pans and zooms (scroll or pinch to zoom, drag to pan, double-click to fit) in the desktop app's side panel; switch the panel to **View**, as it opens HTML as source. The page is written to a `.mermaid-render/` folder in the session's folder, which ignores itself in git; delete it at any time. **Open in browser** opens the same page in your default browser.
+
 Limitation: only Claude's replies in the transcript are drawn. The desktop app's side-panel file viewer is not hookable by mods, so a `.md` file opened there still shows the code.
 
 ## Install

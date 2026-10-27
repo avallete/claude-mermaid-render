@@ -1,4 +1,4 @@
-export type Rendered = { svg: string } | { error: string }
+export type Rendered = { svg: string; page?: string } | { error: string }
 
 declare module 'claude-code' {
   interface PluginState {
