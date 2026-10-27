@@ -43,7 +43,7 @@ Anywhere with Rust: `cargo binstall merman-cli`. Prebuilt archives and installer
 echo 'graph TD; A-->B' | merman-cli mmdc -i - -o - -e svg | head -c 40
 ```
 
-Its output matches the Mermaid CLI closely. Known gap: some long class-diagram labels can be clipped. If a diagram looks wrong, install the Mermaid CLI below and set `command` to it (step 3).
+Its output matches the Mermaid CLI closely. The mod passes the Trebuchet MS font files (Mermaid's label font) to merman-cli when it finds them, so label boxes are sized like the Mermaid CLI's; without them, labels can be clipped. If a diagram looks wrong, install the Mermaid CLI below and set `command` to it (step 3).
 
 svgo (below) is still worth installing alongside merman-cli; it needs Node.js (`npm i -g svgo`).
 

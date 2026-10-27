@@ -55,15 +55,22 @@ const findBin = name => {
     if (file && fs.existsSync(file)) return file
   }
 }
+// Mermaid styles labels in Trebuchet MS. merman-cli's built-in metrics measure
+// it ~10% narrow, so browsers clip labels; the real font files fix the widths.
+const fontDirs = win ? [path.join(process.env.WINDIR || 'C:' + path.sep + 'Windows', 'Fonts')]
+  : ['/System/Library/Fonts/Supplemental', '/Library/Fonts', '/usr/share/fonts/truetype/msttcorefonts']
+const fonts = fontDirs.flatMap(dir => ['Trebuchet MS.ttf', 'Trebuchet MS Bold.ttf', 'trebuc.ttf', 'trebucbd.ttf']
+  .map(f => path.join(dir, f))).filter(f => fs.existsSync(f))
 process.stdout.write(JSON.stringify({
   node: process.execPath,
   merman: findBin('merman-cli'),
+  fonts,
   mmdc: find('mmdc', ['@mermaid-js', 'mermaid-cli', 'src', 'cli.js']),
   svgo: find('svgo', ['svgo', 'bin', 'svgo.js']),
 }))
 `
 
-type Found = { node?: string; merman?: string; mmdc?: string; svgo?: string }
+type Found = { node?: string; merman?: string; fonts?: string[]; mmdc?: string; svgo?: string }
 
 // Commands run from the filesystem root, not the session's folder: Windows looks
 // up a bare `node`/`npx` in the working directory first, so a cloned repo could
@@ -130,7 +137,7 @@ async function render($: EngineInterface, cfg: Config, key: string, source: stri
     // merman-cli renders natively in ~10 ms and takes mmdc's flags; mmdc
     // starts a headless Chromium for every diagram.
     const command = custom.length ? custom
-      : found.merman ? [found.merman, 'mmdc']
+      : found.merman ? [found.merman, 'mmdc', ...(found.fonts ?? []).flatMap(f => ['--font-file', f])]
       : found.node && found.mmdc ? [found.node, found.mmdc] : NPX
     const argv = [
       ...command,
