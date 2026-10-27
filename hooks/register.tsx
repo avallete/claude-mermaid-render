@@ -102,12 +102,28 @@ async function run($: EngineInterface, argv: string[], stdin: string) {
 
 // Mermaid writes coordinates to ~15 decimals and strokes every outline twice;
 // svgo at one decimal cuts a typical flowchart ~4x with no visible change.
+// Run through svgo's API (the global package beside its launcher) rather than
+// its CLI, which takes no inline config: convertShapeToPath must stay off, as
+// Mermaid fills shapes through CSS such as `.node rect`, and a rect turned into
+// a path loses its fill and draws black.
 // Optional: without a global svgo, or if it fails, the raw SVG is kept.
+const SVGO = `
+const fs = require('fs'), path = require('path')
+const root = path.join(path.dirname(process.argv[1]), '..')
+const lib = ['dist/svgo-node.cjs', 'lib/svgo-node.js'].map(f => path.join(root, f)).find(f => fs.existsSync(f))
+const { optimize } = require(lib)
+process.stdout.write(optimize(fs.readFileSync(0, 'utf8'), {
+  multipass: true,
+  floatPrecision: 1,
+  plugins: [{ name: 'preset-default', params: { overrides: { convertShapeToPath: false } } }],
+}).data)
+`
+
 async function optimize($: EngineInterface, found: Found, svg: string) {
   if (!found.node || !found.svgo) return svg
   try {
     const out = await $.process.run(
-      [found.node, found.svgo, '-i', '-', '-o', '-', '--precision', '1', '--multipass'],
+      [found.node, '-e', SVGO, found.svgo],
       { cwd: CWD, stdin: svg, timeoutMs: 30_000 },
     )
     const small = out.stdout.slice(out.stdout.indexOf('<svg'))

@@ -20,7 +20,7 @@ const MSG = (surface: 'desktop' | 'terminal') => ({
 test('desktop draws the diagram once mmdc answers', async ($, on) => {
   let calls = 0
   on('process.run', (_, e) => {
-    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","mmdc":"/g/cli.js"}')
+    if (e.argv[1] === '-e' && e.argv.length === 3) return ok('{"node":"/bin/node","mmdc":"/g/cli.js"}')
     calls += 1
     expect(e.argv.slice(0, 2)).toEqual(['/bin/node', '/g/cli.js'])
     expect(e.init?.stdin).toBe('graph TD\n  A-->B')
@@ -45,7 +45,7 @@ test('desktop draws the diagram once mmdc answers', async ($, on) => {
 test('merman-cli on PATH is preferred over mmdc', async ($, on) => {
   const argvs: string[][] = []
   on('process.run', (_, e) => {
-    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","merman":"/g/merman-cli","fonts":["/f/trebuc.ttf"],"mmdc":"/g/cli.js"}')
+    if (e.argv[1] === '-e' && e.argv.length === 3) return ok('{"node":"/bin/node","merman":"/g/merman-cli","fonts":["/f/trebuc.ttf"],"mmdc":"/g/cli.js"}')
     argvs.push(e.argv)
     return ok(RAW)
   })
@@ -57,9 +57,9 @@ test('merman-cli on PATH is preferred over mmdc', async ($, on) => {
 
 test('a global svgo shrinks the diagram', async ($, on) => {
   on('process.run', (_, e) => {
-    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","mmdc":"/g/cli.js","svgo":"/g/svgo.js"}')
-    if (e.argv[1] === '/g/svgo.js') {
-      expect(e.argv).toContain('--precision')
+    if (e.argv[1] === '-e' && e.argv.length === 3) return ok('{"node":"/bin/node","mmdc":"/g/cli.js","svgo":"/g/svgo.js"}')
+    if (e.argv[3] === '/g/svgo.js') {
+      expect(e.argv[2]).toContain("convertShapeToPath: false")
       expect(e.init?.stdin).toBe(RAW)
       return ok('<svg>small</svg>')
     }
