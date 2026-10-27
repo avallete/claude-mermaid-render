@@ -40,6 +40,19 @@ test('desktop draws the diagram once mmdc answers', async ($, on) => {
   await ui.unmount()
 })
 
+test('merman-cli on PATH is preferred over mmdc', async ($, on) => {
+  const argvs: string[][] = []
+  on('process.run', (_, e) => {
+    if (e.argv[1] === '-e') return ok('{"node":"/bin/node","merman":"/g/merman-cli","mmdc":"/g/cli.js"}')
+    argvs.push(e.argv)
+    return ok(RAW)
+  })
+  const ui = await $.ui.mount(MSG('desktop'))
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  expect(argvs[0]?.slice(0, 3)).toEqual(['/g/merman-cli', 'mmdc', '-i'])
+  await ui.unmount()
+})
+
 test('a global svgo shrinks the diagram', async ($, on) => {
   on('process.run', (_, e) => {
     if (e.argv[1] === '-e') return ok('{"node":"/bin/node","mmdc":"/g/cli.js","svgo":"/g/svgo.js"}')
