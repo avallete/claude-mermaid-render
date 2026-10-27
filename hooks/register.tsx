@@ -119,9 +119,12 @@ async function optimize($: EngineInterface, found: Found, svg: string) {
 
 // Mermaid's root is width="100%" with a CSS max-width, which leaves the Svg
 // element no size of its own; it is drawn small. Size it from the viewBox,
-// scaled down to fit the transcript column.
+// scaled down to fit the transcript column. Desktop drops HTML labels
+// (foreignObject) from a sized Svg, so those diagrams keep the default; merman
+// is run with resvg-safe, which writes plain SVG text.
 const MAX_WIDTH = 720
 export function size(svg: string): { width?: number; height?: number } {
+  if (svg.includes('<foreignObject')) return {}
   const root = svg.slice(0, svg.indexOf('>') + 1)
   const box = root.match(/viewBox="[-\d.]+[ ,]+[-\d.]+[ ,]+([\d.]+)[ ,]+([\d.]+)"/)
   const w = Number(box?.[1]), h = Number(box?.[2])
@@ -150,7 +153,7 @@ async function render($: EngineInterface, cfg: Config, key: string, source: stri
     // merman-cli renders natively in ~10 ms and takes mmdc's flags; mmdc
     // starts a headless Chromium for every diagram.
     const command = custom.length ? custom
-      : found.merman ? [found.merman, 'mmdc', ...(found.fonts ?? []).flatMap(f => ['--font-file', f])]
+      : found.merman ? [found.merman, 'mmdc', '--svg-pipeline', 'resvg-safe', ...(found.fonts ?? []).flatMap(f => ['--font-file', f])]
       : found.node && found.mmdc ? [found.node, found.mmdc] : NPX
     const argv = [
       ...command,

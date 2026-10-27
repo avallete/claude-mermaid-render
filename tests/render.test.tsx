@@ -51,7 +51,7 @@ test('merman-cli on PATH is preferred over mmdc', async ($, on) => {
   })
   const ui = await $.ui.mount(MSG('desktop'))
   expect(await ui.find({ type: 'Svg' })).toBeDefined()
-  expect(argvs[0]?.slice(0, 5)).toEqual(['/g/merman-cli', 'mmdc', '--font-file', '/f/trebuc.ttf', '-i'])
+  expect(argvs[0]?.slice(0, 7)).toEqual(['/g/merman-cli', 'mmdc', '--svg-pipeline', 'resvg-safe', '--font-file', '/f/trebuc.ttf', '-i'])
   await ui.unmount()
 })
 
@@ -97,4 +97,5 @@ test('the diagram is sized from its viewBox, capped to the column', () => {
   expect(size('<svg width="100%" style="max-width: 207px" viewBox="4 4 207.4 384"><g/></svg>')).toEqual({ width: 207, height: 384 })
   expect(size('<svg viewBox="0 0 1440 200"><g/></svg>')).toEqual({ width: 720, height: 100 })
   expect(size('<svg><g/></svg>')).toEqual({})
+  expect(size('<svg viewBox="0 0 10 10"><foreignObject/></svg>')).toEqual({})
 })
