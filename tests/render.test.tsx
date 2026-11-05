@@ -39,6 +39,12 @@ test('desktop draws the diagram once mmdc answers', async ($, on) => {
   expect(await ui.find({ type: 'Svg' })).toBeDefined()
   expect(await ui.find({ type: 'Markdown', text: /Here is the flow/ })).toBeDefined()
   expect(calls).toBe(1)
+
+  await ui.press({ key: 'src1' })
+  expect(await ui.find({ type: 'Markdown', text: /```mermaid\ngraph TD/ })).toBeDefined()
+  expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+  await ui.press({ key: 'src1' })
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
   await ui.unmount()
 })
 

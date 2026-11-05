@@ -8,6 +8,12 @@ const diagrams = atom(
   {} as Record<string, Rendered>,
 )
 
+// Diagrams the user flipped to their source text, keyed like `diagrams`.
+const showing = atom(
+  { plugin: 'mermaid-render', key: 'showing' } as const,
+  {} as Record<string, boolean>,
+)
+
 type Part = { kind: 'text'; text: string } | { kind: 'mermaid'; source: string }
 
 const FENCE = /^(```|~~~)[ \t]*mermaid[ \t]*\n([\s\S]*?)\n\1[ \t]*$/gm
@@ -292,6 +298,7 @@ export const register: Register = (on, options) => {
 
     const { Box, Button, Markdown, Svg, Text } = $.ui.resolve(e)
     const cache = await read($, diagrams)
+    const shown = await read($, showing)
 
     return (
       <Box flexDirection="column">
@@ -314,14 +321,22 @@ export const register: Register = (on, options) => {
           }
           return (
             <Box key={`d${i}`} flexDirection="column" alignItems="center">
-              <Svg
+              {shown[key] ? <Markdown key={`s${i}`} text={fenced} /> : <Svg
+                key={`g${i}`}
                 source={done.svg}
                 {...size(done.svg)}
                 alt={`Mermaid diagram:\n${part.source}`}
                 isInteractive
-              />
+              />}
               <Box key={`a${i}`} flexDirection="row" gap={2}>
                 {done.page && <Markdown key={`p${i}`} dimColor text={`[Open full size](${done.page}) (switch the panel to View)`} />}
+                <Button
+                  key={`src${i}`}
+                  label={shown[key] ? 'Show diagram' : 'Show source'}
+                  plain
+                  dimColor
+                  onPress={() => void update($, showing, all => ({ ...all, [key]: !all[key] }))}
+                />
                 <Button key={`open${i}`} label="Open in browser" plain dimColor onPress={() => openFull($, cfg, done.svg)} />
               </Box>
             </Box>
