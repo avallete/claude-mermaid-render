@@ -1,6 +1,6 @@
 {
   "name": "mermaid-render",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "Andrew Valleteau" },
   "description": "Draws ```mermaid blocks in assistant replies as diagrams in Claude Code Desktop",
   "license": "MIT",
