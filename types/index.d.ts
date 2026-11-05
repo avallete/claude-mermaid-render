@@ -2,6 +2,6 @@ export type Rendered = { svg: string; page?: string } | { error: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    'mermaid-render': { diagrams: Record<string, Rendered> }
+    'mermaid-render': { diagrams: Record<string, Rendered>; showing: Record<string, boolean> }
   }
 }
