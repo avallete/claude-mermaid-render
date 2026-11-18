@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { size } from '../hooks/register'
 
@@ -83,6 +83,48 @@ test('a failed render keeps the code block and says why', async ($, on) => {
   const ui = await $.ui.mount(MSG('desktop'))
   expect(await ui.find({ type: 'Svg' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /Parse error/ })).toBeDefined()
+  await ui.unmount()
+})
+
+const BROKEN = (stdin: unknown) => String(stdin).includes('A-->B')
+  ? { value: { exitCode: 1, stdout: '', stderr: 'Parse error', isStdoutTruncated: false, isStderrTruncated: false } }
+  : ok(RAW)
+
+test('an edit fixes a broken diagram and is saved for later sessions', async ($, on) => {
+  const saved: unknown[] = []
+  on('store.get', () => ({ value: undefined }))
+  on('store.set', (_, e) => { saved.push(e.value); return { value: undefined } })
+  on('process.run', (_, e) => {
+    if (e.argv[1] === '-e' && e.argv.length === 3) return ok('{"node":"/bin/node","mmdc":"/g/cli.js"}')
+    return BROKEN(e.init?.stdin)
+  })
+  const ui = await $.ui.mount(MSG('desktop'))
+  expect(await ui.find({ type: 'Text', text: /Parse error/ })).toBeDefined()
+
+  await ui.press({ key: 'edit1' })
+  expect((await ui.find({ key: 'input1' }))?.props.value).toBe('graph TD\n  A-->B')
+  await ui.input({ key: 'input1', text: 'graph TD\n  A-->C\n' })
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  expect(await ui.find({ key: 'input1' })).toBeUndefined()
+  expect(saved.at(-1)).toEqual({ 'graph TD\n  A-->B': 'graph TD\n  A-->C' })
+
+  await ui.press({ key: 'revert1' })
+  expect(await ui.find({ type: 'Text', text: /Parse error/ })).toBeDefined()
+  expect(saved.at(-1)).toEqual({})
+  await ui.unmount()
+})
+
+test('a fix saved in an earlier session is applied', async ($, on) => {
+  mock.store(on, { fixes: { 'graph TD\n  A-->B': 'graph TD\n  A-->C' } })
+  on('process.run', (_, e) => {
+    if (e.argv[1] === '-e' && e.argv.length === 3) return ok('{"node":"/bin/node","mmdc":"/g/cli.js"}')
+    return BROKEN(e.init?.stdin)
+  })
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(MSG('desktop'))
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  expect(await ui.find({ key: 'revert1' })).toBeDefined()
   await ui.unmount()
 })
 

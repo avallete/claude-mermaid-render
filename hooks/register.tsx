@@ -14,6 +14,37 @@ const showing = atom(
   {} as Record<string, boolean>,
 )
 
+// Diagrams open in the editor, keyed like `diagrams`.
+const editing = atom(
+  { plugin: 'mermaid-render', key: 'editing' } as const,
+  {} as Record<string, boolean>,
+)
+
+// The person's fixes: original source -> edited source. Mirrored to $.store so
+// a fix outlives the session; the message text itself never changes.
+const fixes = atom(
+  { plugin: 'mermaid-render', key: 'fixes' } as const,
+  {} as Record<string, string>,
+)
+const FIXES = 'fixes'
+const MAX_FIXES = 200
+
+async function loadFixes($: EngineInterface) {
+  const stored = await $.store.get(FIXES)
+  if (stored && typeof stored === 'object') await update($, fixes, all => ({ ...(stored as Record<string, string>), ...all }))
+}
+
+async function saveFix($: EngineInterface, original: string, edited: string | undefined) {
+  const next = await update($, fixes, all => {
+    const { [original]: _, ...rest } = all
+    if (edited === undefined || edited === original) return rest
+    // Re-inserting puts it last; the oldest fixes go first past the cap.
+    const kept = Object.entries(rest).slice(-(MAX_FIXES - 1))
+    return { ...Object.fromEntries(kept), [original]: edited }
+  })
+  await $.store.set(FIXES, next)
+}
+
 type Part = { kind: 'text'; text: string } | { kind: 'mermaid'; source: string }
 
 const FENCE = /^(```|~~~)[ \t]*mermaid[ \t]*\n([\s\S]*?)\n\1[ \t]*$/gm
@@ -290,44 +321,76 @@ export const register: Register = (on, options) => {
   const puppeteerConfig = String(options.puppeteerConfig ?? '')
   const cfg: Config = { custom: words, found: undefined, theme, puppeteerConfig, pending: new Set() }
 
+  on('session.start', async ($, e, next) => {
+    await loadFixes($)
+    return next(e)
+  })
+
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     if (e.surface !== 'desktop' || e.props.isSummary) return next(e)
 
     const parts = split(e.props.text)
     if (!parts.some(p => p.kind === 'mermaid')) return next(e)
 
-    const { Box, Button, Markdown, Svg, Text } = $.ui.resolve(e)
+    const { Box, Button, Input, Markdown, Svg, Text } = $.ui.resolve(e)
     const cache = await read($, diagrams)
     const shown = await read($, showing)
+    const open = await read($, editing)
+    const fixed = await read($, fixes)
 
     return (
       <Box flexDirection="column">
         {parts.map((part, i) => {
           if (part.kind === 'text') return <Markdown key={`t${i}`} text={part.text} />
-          const fenced = '```mermaid\n' + part.source + '\n```'
-          const key = `${theme}\n${part.source}`
+          const original = part.source
+          const source = fixed[original] ?? original
+          const fenced = '```mermaid\n' + source + '\n```'
+          const key = `${theme}\n${source}`
+          const toggleEdit = () => void update($, editing, all => ({ ...all, [original]: !all[original] }))
+          const editButtons = [
+            <Button key={`edit${i}`} label={open[original] ? 'Cancel edit' : 'Edit'} plain dimColor onPress={toggleEdit} />,
+            ...(fixed[original] !== undefined
+              ? [<Button key={`revert${i}`} label="Revert edit" plain dimColor onPress={() => void saveFix($, original, undefined)} />]
+              : []),
+          ]
+          const editor = open[original] && (
+            <Input
+              key={`input${i}`}
+              rows={Math.min(20, source.split('\n').length + 1)}
+              value={source}
+              submitLabel="save"
+              autoFocus
+              onSubmit={value => {
+                void (async () => {
+                  await saveFix($, original, value.replace(/\n+$/, ''))
+                  await update($, editing, all => ({ ...all, [original]: false }))
+                })()
+              }}
+            />
+          )
           const done = cache[key]
           if (!done) {
-            void render($, cfg, key, part.source)
+            void render($, cfg, key, source)
             return <Markdown key={`m${i}`} text={fenced} />
           }
           if ('error' in done) {
             return (
               <Box key={`e${i}`} flexDirection="column">
-                <Markdown key={`m${i}`} text={fenced} />
-                <Text dimColor>mermaid: {done.error}</Text>
+                {editor || <Markdown key={`m${i}`} text={fenced} />}
+                <Text key={`x${i}`} dimColor>mermaid: {done.error}</Text>
+                <Box key={`a${i}`} flexDirection="row" gap={2}>{editButtons}</Box>
               </Box>
             )
           }
           return (
             <Box key={`d${i}`} flexDirection="column" alignItems="center">
-              {shown[key] ? <Markdown key={`s${i}`} text={fenced} /> : <Svg
+              {editor || (shown[key] ? <Markdown key={`s${i}`} text={fenced} /> : <Svg
                 key={`g${i}`}
                 source={done.svg}
                 {...size(done.svg)}
-                alt={`Mermaid diagram:\n${part.source}`}
+                alt={`Mermaid diagram:\n${source}`}
                 isInteractive
-              />}
+              />)}
               <Box key={`a${i}`} flexDirection="row" gap={2}>
                 {done.page && <Markdown key={`p${i}`} dimColor text={`[Open full size](${done.page}) (switch the panel to View)`} />}
                 <Button
@@ -337,6 +400,7 @@ export const register: Register = (on, options) => {
                   dimColor
                   onPress={() => void update($, showing, all => ({ ...all, [key]: !all[key] }))}
                 />
+                {editButtons}
                 <Button key={`open${i}`} label="Open in browser" plain dimColor onPress={() => openFull($, cfg, done.svg)} />
               </Box>
             </Box>
