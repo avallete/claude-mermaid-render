@@ -15,6 +15,8 @@ While a diagram renders, the reply shows the original code block. If rendering f
 
 Under each diagram, **Open full size** opens a page that pans and zooms (scroll or pinch to zoom, drag to pan, double-click to fit) in the desktop app's side panel; switch the panel to **View**, as it opens HTML as source. The page is written to a `.mermaid-render/` folder in the session's folder, which ignores itself in git; delete it at any time. **Open in browser** opens the same page in your default browser. **Show source** swaps the diagram for its Mermaid code block, so you can copy it; **Show diagram** swaps back.
 
+**Edit** opens the diagram's code in a text box, also under a diagram that failed to render. Press Enter to save; the diagram is drawn from your version. Fixes are kept across sessions (in the plugin's own store, the 200 most recent) and apply wherever the same original code appears. **Revert edit** goes back to the original. The reply itself is not changed, so Claude and anything copied from the reply still see the original code.
+
 Limitation: only Claude's replies in the transcript are drawn. The desktop app's side-panel file viewer is not hookable by mods, so a `.md` file opened there still shows the code.
 
 ## Install
